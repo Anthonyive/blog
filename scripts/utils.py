@@ -16,7 +16,6 @@ def current_date_time():
 
 def new_post_helper():
     """A helper function for generating YAML title for posts"""
-    CATEGORIES = ["blogs","portfolios","leatherworking"]
 
     output = "---\n"
     output += "layout: post\n"
@@ -27,25 +26,33 @@ def new_post_helper():
     datestr = current_date_time()
     output += f"date: {datestr}\n"
 
-    while True:
-        category = input(f"Category ({'/'.join(CATEGORIES)}): ")
-        if category.lower() in CATEGORIES:
-            output += f"category: {category.lower()}\n"
-            break
-        else:
-            print("Please enter the category name in parentheses.")
-    
-    while True:
-        tags = input("Tags (comma separated, end with '$' to re-enter): ")
-        tags = tags.replace(", ", ",") # remove all spaces
-        if tags.endswith('$'):
-            continue
-        elif not tags: # if no tags are entered:
-            break
-        else:
-            tags_split = tags.split(',')
-            output += f"tags: {repr(tags_split)}\n"
-            break
+    author = input("Author(s) [default: Yuchen Zhang, sep: comma]: ")
+    if not author:
+       output += f"author: Yuchen Zhang\n"
+    elif ',' in author:
+        authors = author.split(',')
+        authors = [a.strip() for a in authors]
+        output += 'author: \n'
+        for a in authors:
+            output += f'  - {a}\n'
+    else:
+        output += f"author: {author}\n"
+
+    category = input(f"Category [only one category]: ")
+    if category:
+        output += f"categories: {category}\n"
+
+    tag = input("Tag(s) [default: None, sep: comma]: ")
+    if not tag:
+       pass
+    elif ',' in tag:
+        tags = tag.split(',')
+        tags = [t.strip() for t in tags]
+        output += 'tags: \n'
+        for t in tags:
+            output += f'  - {t}\n'
+    else:
+        output += f"tags: {tag}\n"
 
     output += "---"
     
@@ -58,13 +65,13 @@ def new_post_helper():
 
     print()
     
-    if cwd != 'website':
+    if cwd != 'blog':
         print("Failed to create the markdown file. Please run the program in the root directory.")
         print("Your YAML title has been generated and copied to your clipboard. Or you can copy it here:")
         pyperclip.copy(output)
         print(output)
     else: 
-        with open(os.path.join(os.getcwd(), category, "_posts", md_filename), 'w') as f:
+        with open(os.path.join(os.getcwd(), "_posts", md_filename), 'w') as f:
             f.write(output)
         print("\N{party popper} Hooray! Your markdown file with YAML title is properly created.")
 
