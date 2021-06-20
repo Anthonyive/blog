@@ -27,7 +27,7 @@ url: "https://anthonyive.github.io" # the base hostname & protocol for your site
 linkedin_username: anthonyive
 github_username:  anthonyive
 
-# author: Yuchen Zhang
+author: Yuchen Zhang
 
 # Build settings
 theme: jekyll-theme-yat
@@ -49,7 +49,7 @@ paginate: 10
 
 # Disqus comments
 disqus:
-  shortname: "blog-hp7yrcnako"
+  shortname: "blog-g49frf6rg4"
 
 # Exclude from processing.
 # The following items will not be processed, by default.
