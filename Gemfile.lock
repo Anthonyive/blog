@@ -284,7 +284,10 @@ PLATFORMS
 DEPENDENCIES
   github-pages
   jekyll-feed (~> 0.12)
+  jekyll-paginate
   jekyll-pdf-embed
+  jekyll-seo-tag
+  jekyll-sitemap
   jekyll-spaceship
   jekyll-theme-yat
   jekyll_figure

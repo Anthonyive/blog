@@ -41,6 +41,16 @@ figures:
 
 copyright: Copyright © 2008-2021
 
+# If you want to generate website sitemap, you can set true
+sitemap: true
+
+# Pagination setting
+paginate: 10
+
+# Disqus comments
+disqus:
+  shortname: "blog-hp7yrcnako"
+
 # Exclude from processing.
 # The following items will not be processed, by default.
 # Any item listed under the `exclude:` key here will be automatically added to
