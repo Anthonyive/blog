@@ -52,12 +52,12 @@ paginate: 10
 #   shortname: "blog-g49frf6rg4"
 
 # Gitment comments
-gitment:
-  username: "anthonyive"
-  repo: "blog"
-  client_id: "7431df1dff02a966279e"
-  client_secret: "08868c03bdb2f8504995c1463c93ebe1f4bf7d9f"
-  redirect_uri: "https://anthonyive.github.io/blog/"
+# gitment:
+#   username: "anthonyive"
+#   repo: "blog"
+#   client_id: "7431df1dff02a966279e"
+#   client_secret: "08868c03bdb2f8504995c1463c93ebe1f4bf7d9f"
+#   redirect_uri: "https://anthonyive.github.io/blog/"
 
 # Exclude from processing.
 # The following items will not be processed, by default.
