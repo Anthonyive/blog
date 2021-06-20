@@ -4,7 +4,7 @@ title:  "Query Execution Study Note"
 author: Yuchen Zhang
 categories: computer
 date:   2021-04-19
-tags: ["study notes", "SQL", "query execution"]
+tags: ["study-notes", "sql", "query-execution"]
 ---
 
 Query execution is part of the query processor. The SQL query will be firstly compiled then be executed. A simple diagram shows clearly below.

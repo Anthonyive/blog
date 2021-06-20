@@ -4,7 +4,7 @@ title:  "Constraints and Views Study Note"
 author: Yuchen Zhang
 categories: computer
 date:   2021-05-06
-tags: ["study notes", "constraints", "views"]
+tags: ["study-notes", "constraints", "views"]
 ---
 
 ## Constraints

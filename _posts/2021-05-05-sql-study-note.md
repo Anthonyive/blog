@@ -4,10 +4,10 @@ title:  "SQL Study Note"
 author: Yuchen Zhang
 categories: computer
 date:   2021-05-05
-tags: ["study notes", "SQL"]
+tags: ["study-notes", "sql"]
 ---
 
-The data uses in this post can be downloaded [as a SQL file](/website/assets/attachments/beers-tables.sql). Also, the post is using MySQL.
+The data uses in this post can be downloaded [as a SQL file](/blog/assets/attachments/beers-tables.sql). Also, the post is using MySQL.
 Quote from MySQL documentation, "In MySQL, `JOIN`, `CROSS JOIN`, and `INNER JOIN` are syntactic equivalents (they can replace each other). In standard SQL, they are not equivalent. `INNER JOIN` is used with an `ON` clause, `CROSS JOIN` is used otherwise."
 
 ```sql

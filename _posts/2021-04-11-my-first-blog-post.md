@@ -3,7 +3,7 @@ layout: post
 title:  "My First Blog Post"
 author: Yuchen Zhang
 categories: blog
-tags: ["first blog"]
+tags: ["first-blog"]
 date:   2021-04-11 03:51:33 -0700
 ---
 

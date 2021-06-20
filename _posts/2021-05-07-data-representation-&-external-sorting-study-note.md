@@ -4,7 +4,7 @@ title: Data Representation & External Sorting Study Note
 author: Yuchen Zhang
 categories: computer
 date: Fri, 07 May 2021 13:25:34 -0000
-tags: ['SQL', 'study notes', 'data representation', 'external sorting']
+tags: ['sql', 'study-notes', 'data-representation', 'external-sorting']
 ---
 
 ## Data Representation

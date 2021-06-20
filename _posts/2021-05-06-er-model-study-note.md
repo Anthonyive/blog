@@ -4,7 +4,7 @@ title:  "ER Model Study Note"
 author: Yuchen Zhang
 categories: computer
 date: Thu, 06 May 2021 21:48:45 -0000
-tags: ["study notes", "ER model"]
+tags: ["study-notes", "er-model"]
 ---
 
 ![header comic](https://pbs.twimg.com/media/BoUn8iUIgAAq-CU.png)
