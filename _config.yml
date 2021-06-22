@@ -51,6 +51,10 @@ paginate: 10
 disqus:
   shortname: "blog-g49frf6rg4"
 
+# Google analytics
+google_analytics: "UA-199968139-1"
+enableDNT: "false"
+
 # Gitment comments
 # gitment:
 #   username: "anthonyive"
