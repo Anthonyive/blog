@@ -48,8 +48,8 @@ sitemap: true
 paginate: 10
 
 # Disqus comments
-# disqus:
-#   shortname: "blog-g49frf6rg4"
+disqus:
+  shortname: "blog-g49frf6rg4"
 
 # Gitment comments
 # gitment:

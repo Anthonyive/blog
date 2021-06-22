@@ -11,6 +11,11 @@ tags: ["backend", "frontend", "search", "flask"]
 
 {% figure walmart-search-demo png 'Walmart Search Demo' %}
 
+- [Check out demo here](#check-out-demo-here)
+- [Scripts](#scripts)
+  - [Where we stored the data](#where-we-stored-the-data)
+  - [Demo](#demo)
+
 ## Check out demo [here](https://www.dsci-551-project-walmart-demo.ml)
 
 I'm using a new domain name from freenom that will support for an year. I deployed the website on AWS ec2.

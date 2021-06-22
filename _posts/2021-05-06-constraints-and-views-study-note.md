@@ -7,6 +7,27 @@ date:   2021-05-06
 tags: ["study-notes", "constraints", "views"]
 ---
 
+- [Constraints](#constraints)
+  - [Kinds of Constraints](#kinds-of-constraints)
+  - [Keys](#keys)
+    - [Primary Key vs Unique](#primary-key-vs-unique)
+  - [Foreign Keys](#foreign-keys)
+    - [Express Foreign Key with Attribute](#express-foreign-key-with-attribute)
+    - [Express Foreign Key as Element](#express-foreign-key-as-element)
+    - [Express Foreign Key with Unique Attributes](#express-foreign-key-with-unique-attributes)
+    - [Enforcing Foreign Key Constraints](#enforcing-foreign-key-constraints)
+    - [Dealing with Enforcing Foreign Key Constraints](#dealing-with-enforcing-foreign-key-constraints)
+  - [Value-based constraints](#value-based-constraints)
+    - [Attribute-Based Checks](#attribute-based-checks)
+      - [Timing of Attribute-Based Checks](#timing-of-attribute-based-checks)
+    - [Tuple-based Checks](#tuple-based-checks)
+    - [Assertions (Not Supported in MySQL)](#assertions-not-supported-in-mysql)
+      - [Timing of Assertion Checks](#timing-of-assertion-checks)
+- [Views](#views)
+  - [What Happens When a View Is Used?](#what-happens-when-a-view-is-used)
+  - [DMBS Optimization](#dmbs-optimization)
+  - [Types of Views](#types-of-views)
+
 ## Constraints
 
 ### Kinds of Constraints

@@ -15,6 +15,14 @@ tags: d3  flask  spacy  flask-application dcgan  d3js  phishing-attacks d3-visua
 
 {% figure fradulent-emails-d3-home png 'Home Page' %}
 
+- [Assignment 3 Project Report](#assignment-3-project-report)
+  - [Visualization 1 - Email Content Word Cloud](#visualization-1---email-content-word-cloud)
+  - [Visualization 2 - Attack type popularity and connectivity](#visualization-2---attack-type-popularity-and-connectivity)
+  - [Visualization 3 - Multi-Line Chart of Date & Stock](#visualization-3---multi-line-chart-of-date--stock)
+  - [Visualization 4 - Calendar View of Fraudulent Emails](#visualization-4---calendar-view-of-fraudulent-emails)
+  - [Visualization 5 - Bubble Map of Fraudulent Emails Attacker Locations](#visualization-5---bubble-map-of-fraudulent-emails-attacker-locations)
+  - [Contributions](#contributions)
+
 ## Assignment 3 Project Report
 
 - GitHub Repo: [https://github.com/Anthonyive/DSCI-550-Assignment-3](https://github.com/Anthonyive/DSCI-550-Assignment-3)

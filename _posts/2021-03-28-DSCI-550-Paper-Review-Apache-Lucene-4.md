@@ -9,6 +9,20 @@ tags: ["paper-review"]
 
 ![myimg](https://www.youtube.com/watch?v=FhonejJcFpc&t=1s)
 
+- [Related work & background](#related-work--background)
+- [What is Lucene](#what-is-lucene)
+- [Why should you care about Lucene?](#why-should-you-care-about-lucene)
+- [Information Retrieval (IR)](#information-retrieval-ir)
+- [Inverted index](#inverted-index)
+- [Foundations](#foundations)
+- [Indexing](#indexing)
+- [Incremental Index Updates](#incremental-index-updates)
+- [Codec API](#codec-api)
+- [Searching](#searching)
+- [Conclusion](#conclusion)
+- [Evaluation](#evaluation)
+- [References](#references)
+
 Today I'm presenting a Paper called [Apache Lucene 4](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.310.1024&rep=rep1&type=pdf) from proceedings of the Sigia 2012 workshop on information retrieval. The following are the script for the YouTube video.
 
 ## Related work & background

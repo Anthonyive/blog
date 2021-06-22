@@ -25,7 +25,7 @@ This note is mainly on query execution.
   - [Cost of the Scan Operator](#cost-of-the-scan-operator)
     - [Clsutered relation](#clsutered-relation)
     - [Unclustered relation](#unclustered-relation)
-- [<span style="color: gold;"><i class="fas fa-star"></i></span> Classification of Physical Operators](#i-classfas-fa-stari-classification-of-physical-operators)
+- [Classification of Physical Operators](#classification-of-physical-operators)
   - [One-pass Algorithms](#one-pass-algorithms)
     - [Selection, $\sigma(R)$ and Projection, $\Pi(R)$](#selection-sigmar-and-projection-pir)
     - [Duplicate elimination, $\delta(R)$](#duplicate-elimination-deltar)
@@ -95,7 +95,7 @@ The table is unclustered (e.g. its records are placed in blocks with those of ot
 
 - Table scan: $T(R)$
 
-## <span style="color: gold;"><i class="fas fa-star"></i></span> Classification of Physical Operators
+## Classification of Physical Operators
 
 ### One-pass Algorithms
 

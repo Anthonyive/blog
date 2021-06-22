@@ -7,6 +7,18 @@ date: Fri, 07 May 2021 13:25:34 -0000
 tags: ['sql', 'study-notes', 'data-representation', 'external-sorting']
 ---
 
+- [Data Representation](#data-representation)
+- [External Sorting](#external-sorting)
+  - [Basics](#basics)
+  - [2-Way Merge-sort (Requires 3 Buffers)](#2-way-merge-sort-requires-3-buffers)
+  - [If we have more main memory...](#if-we-have-more-main-memory)
+    - [Example:](#example)
+  - [External Merge-Sort](#external-merge-sort)
+    - [Pass 0 (Sorting)](#pass-0-sorting)
+    - [Pass 1/k (Merging)](#pass-1k-merging)
+    - [Cost of External Merge Sort](#cost-of-external-merge-sort)
+    - [Example](#example-1)
+
 ## Data Representation
 
 Relational database elements:

@@ -7,6 +7,24 @@ date:   2021-05-05
 tags: ["study-notes", "sql"]
 ---
 
+- [Table of Content](#table-of-content)
+- [Relational Algebra](#relational-algebra)
+- [Basic SQL Clauses](#basic-sql-clauses)
+- [More SQL Clauses](#more-sql-clauses)
+  - [LIKE](#like)
+  - [AND, OR, NOT](#and-or-not)
+- [Multi-Relation Queries (Joins)](#multi-relation-queries-joins)
+  - [Cartesian product (JOIN or INNER JOIN or CROSS JOIN)](#cartesian-product-join-or-inner-join-or-cross-join)
+  - [Theta/Equi Join (JOIN ... ON ... or NATURAL JOIN)](#thetaequi-join-join--on--or-natural-join)
+  - [LEFT/RIGHT JOIN](#leftright-join)
+  - [FULL OUTER JOIN in MySQL](#full-outer-join-in-mysql)
+- [Relation as Bags](#relation-as-bags)
+  - [*Bag Semantics* for `SELECT-FROM-WHERE` Queries](#bag-semantics-for-select-from-where-queries)
+  - [Set Operations on *Bags* (*multisets*)](#set-operations-on-bags-multisets)
+- [Subqueries](#subqueries)
+  - [Subquery in `FROM`](#subquery-in-from)
+  - [Subquery in `WHERE`](#subquery-in-where)
+
 The data uses in this post can be downloaded [as a SQL file](/blog/assets/attachments/beers-tables.sql). Also, the post is using MySQL.
 Quote from MySQL documentation, "In MySQL, `JOIN`, `CROSS JOIN`, and `INNER JOIN` are syntactic equivalents (they can replace each other). In standard SQL, they are not equivalent. `INNER JOIN` is used with an `ON` clause, `CROSS JOIN` is used otherwise."
 
