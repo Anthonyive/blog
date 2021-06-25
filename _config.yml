@@ -39,7 +39,7 @@ figures:
   enumerate: true
   analytics: tru
 
-copyright: Copyright © 2008-2021
+copyright: Copyright © 2021
 
 # If you want to generate website sitemap, you can set true
 sitemap: true
