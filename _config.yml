@@ -37,7 +37,7 @@ plugins:
 figures:
   dir: /blog/assets/figures
   enumerate: true
-  analytics: tru
+  analytics: true
 
 copyright: Copyright © 2021
 
