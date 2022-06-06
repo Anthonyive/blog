@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-translate-customization" content="108d9124921d80c3-80e20d618ff053c8-g4f02ec6f3dba68b7-c">
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Data Representation &amp; External Sorting Study Note | Yuchen’s Blog</title>
+<meta name="generator" content="Jekyll v3.9.2">
+<meta property="og:title" content="Data Representation &amp; External Sorting Study Note">
+<meta name="author" content="Yuchen Zhang">
+<meta property="og:locale" content="en_US">
+<meta name="description" content="Data Representation External Sorting Basics 2-Way Merge-sort (Requires 3 Buffers) If we have more main memory… Example: External Merge-Sort Pass 0 (Sorting) Pass 1/k (Merging) Cost of External Merge Sort Example">
+<meta property="og:description" content="Data Representation External Sorting Basics 2-Way Merge-sort (Requires 3 Buffers) If we have more main memory… Example: External Merge-Sort Pass 0 (Sorting) Pass 1/k (Merging) Cost of External Merge Sort Example">
+<link rel="canonical" href="https://anthonyive.github.io/blog/computer/2021/05/07/data-representation-and-external-sorting-study-note.html">
+<meta property="og:url" content="https://anthonyive.github.io/blog/computer/2021/05/07/data-representation-and-external-sorting-study-note.html">
+<meta property="og:site_name" content="Yuchen’s Blog">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2021-05-07T13:25:34+00:00">
+<meta name="twitter:card" content="summary">
+<meta property="twitter:title" content="Data Representation &amp; External Sorting Study Note">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Yuchen Zhang"},"dateModified":"2021-05-07T13:25:34+00:00","datePublished":"2021-05-07T13:25:34+00:00","description":"Data Representation External Sorting Basics 2-Way Merge-sort (Requires 3 Buffers) If we have more main memory… Example: External Merge-Sort Pass 0 (Sorting) Pass 1/k (Merging) Cost of External Merge Sort Example","headline":"Data Representation &amp; External Sorting Study Note","mainEntityOfPage":{"@type":"WebPage","@id":"https://anthonyive.github.io/blog/computer/2021/05/07/data-representation-and-external-sorting-study-note.html"},"url":"https://anthonyive.github.io/blog/computer/2021/05/07/data-representation-and-external-sorting-study-note.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="shortcut icon" href="">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-noto-sans@0.0.72/index.min.css">
+  <link rel="stylesheet" href="/blog/assets/css/main.css">
+  <script src="/blog/assets/js/main.js"></script><link type="application/atom+xml" rel="alternate" href="https://anthonyive.github.io/blog/feed.xml" title="Yuchen's Blog">
+<script>
+  function initGoogleAnalytics() {
+    var doNotTrack = (window.doNotTrack === "1" || navigator.doNotTrack === "1" ||
+      navigator.doNotTrack === "yes" || navigator.msDoNotTrack === "1");
+    var enableDNT = "false" == "true";
+
+    if (!enableDNT || !doNotTrack) {
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-199968139-1', 'auto');
+      ga('send', 'pageview');
+    }
+  }
+  window.addEventListener("load", initGoogleAnalytics);
+</script>
+
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/default.min.css">
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js"></script>
+<!-- and it's easy to individually load additional languages -->
+<script charset="UTF-8" src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/languages/go.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+// Init highlight js
+document.addEventListener('DOMContentLoaded', function(event) {
+  var els = document.querySelectorAll('pre code')
+
+  function addLangData(block) {
+    var outer = block.parentElement.parentElement.parentElement;
+    var lang = block.getAttribute('data-lang');
+    for (var i = 0; i < outer.classList.length; i++) {
+      var cls = outer.classList[i];
+      if (cls.startsWith('language-')) {
+        lang = cls;
+        break;
+      }
+    }
+    if (!lang) {
+      cls = block.getAttribute('class');
+      lang = cls ? cls.replace('hljs ', '') : '';
+    }
+    if (lang.startsWith('language-')) {
+      lang = lang.substr(9);
+    }
+    block.setAttribute('class', 'hljs ' + lang);
+    block.parentNode.setAttribute('data-lang', lang);
+  }
+
+  function addBadge(block) {
+    var enabled = ('true' || 'true').toLowerCase();
+    if (enabled == 'true') {
+      var pre = block.parentElement;
+      pre.classList.add('badge');
+    }
+  }
+
+  function handle(block) {
+    addLangData(block);
+    addBadge(block)
+    hljs.highlightBlock(block);
+  }
+
+  for (var i = 0; i < els.length; i++) {
+    var el = els[i];
+    handle(el);
+  }
+});
+</script>
+
+<style>
+  /* code language badge */
+  pre.badge::before {
+    content: attr(data-lang);
+    color: #fff;
+    background-color: #ff4e00;
+    padding: 0 .5em;
+    border-radius: 0 2px;
+    text-transform: uppercase;
+    text-align: center;
+    min-width: 32px;
+    display: inline-block;
+    position: absolute;
+    right: 0;
+  }
+
+  /* fix wrong badge display for firefox browser */
+  code > table pre::before {
+    display: none;
+  }
+</style>
+<script>MathJax={"tex":{"inlineMath":[["$","$"],["\\(","\\)"]],"displayMath":[["$$","$$"],["\\[","\\]"]]},"svg":{"fontCache":"global"}}</script><script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script><script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<header class="site-header " role="banner">
+
+  <div class="wrapper">
+    <div class="site-header-inner">
+<span class="site-brand"><a class="site-brand-inner" rel="author" href="/blog/">
+  <img class="site-favicon" title="Yuchen's Blog" src="" onerror="this.style.display='none'">
+  Yuchen's Blog
+</a>
+</span><nav class="site-nav">
+          <input type="checkbox" id="nav-trigger" class="nav-trigger">
+          <label for="nav-trigger">
+            <span class="menu-icon">
+              <svg viewbox="0 0 18 15" width="18px" height="15px">
+                <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+              </svg>
+            </span>
+          </label>
+
+          <div class="trigger">
+<a class="page-link" href="/blog/about.html">ABOUT</a><a class="page-link" href="/blog/archives.html">ARCHIVES</a><a class="page-link" href="/blog/categories.html">CATEGORIES</a><a class="page-link" href="/blog/tags.html">TAGS</a>
+
+
+
+
+</div>
+        </nav>
+</div>
+  </div>
+</header>
+
+<script>
+  function initHeader() {
+    var lastScrollY = getScrollPos().y;
+    var documentElement = document.documentElement;
+
+    function storeScrollData() {
+      var y = getScrollPos().y;var scrollStatus = "";
+
+      if (y <= 0) {
+        scrollStatus = "top";
+      } else if ((window.innerHeight + y) >= document.body.offsetHeight) {
+        scrollStatus = "bottom";
+      } else {
+        var isScrollDown = (y - lastScrollY > 0) ? true : false;
+        scrollStatus = isScrollDown ? "down" : "up";
+      }
+
+      lastScrollY = y;
+      documentElement.setAttribute("data-scroll-status", scrollStatus);
+    }
+
+    window.addEventListener('scroll', function(e) {
+      storeScrollData();
+    });
+
+    storeScrollData();
+  }
+  document.addEventListener('DOMContentLoaded', initHeader);
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+  function hashLocate(hashValue) {
+    hashValue = hashValue.replace(/^.*#h-/, '');
+    hashValue = decodeURIComponent(hashValue);
+    var element = document.getElementById(hashValue);
+
+    if (!element) {
+      return;
+    }
+
+    var header = document.querySelector('header.site-header');
+    var headerRect = header.getBoundingClientRect();
+    var headerTop = Math.floor(headerRect.top);
+    var headerHeight = Math.floor(headerRect.height);
+    var scrollPos = getScrollPos();
+    var offsetY = element.offsetTop - (headerTop + headerHeight + 20);
+
+    if (offsetY == scrollPos.y) {
+      return;
+    }
+
+    if (headerTop == 0  && offsetY > scrollPos.y) {
+      offsetY += headerHeight + 2;
+    } else if (headerTop < 0  && offsetY < scrollPos.y) {
+      offsetY -= headerHeight - 2;
+    }
+
+    smoothScrollTo(offsetY);
+  }
+
+  // The first event occurred
+  window.addEventListener('load', function(event) {
+    if (window.location.hash) {
+      hashLocate(window.location.hash);
+    }
+  });
+
+  // The first event occurred
+  window.addEventListener('click', function(event) {
+    if (event.target.tagName.toLowerCase() == 'a') {
+      hashLocate(event.target.getAttribute('href'));
+    }
+  });
+</script>
+<div class="theme-toggle">
+  <input type="checkbox" id="theme-switch">
+  <label for="theme-switch">
+    <div class="toggle"></div>
+    <div class="names">
+      <p class="light">Light</p>
+      <p class="dark">Dark</p>
+    </div>
+  </label>
+</div>
+
+
+
+
+<script>
+  (function() {
+    var sw = document.getElementById('theme-switch');
+    var html = document.getElementsByTagName('html')[0];
+    var nightModeOption = ('auto' || 'auto').toLowerCase();
+    var storage = nightModeOption === 'manual'
+        ? localStorage
+        : sessionStorage;
+    var themeData = loadThemeData();
+
+    function saveThemeData(data) {
+      storage.setItem('theme', JSON.stringify(data));
+    }
+
+    function loadThemeData() {
+      var data = storage.getItem('theme');
+      try {
+        data = JSON.parse(data ? data : '');
+      } catch(e) {
+        data = { nightShift: undefined, autoToggleAt: 0 };
+        saveThemeData(data);
+      }
+      return data;
+    }
+
+    function handleThemeToggle(nightShift) {
+      themeData.nightShift = nightShift;
+      saveThemeData(themeData);
+      html.dataset.theme = nightShift ? 'dark' : 'light';
+      setTimeout(function() {
+        sw.checked = nightShift ? true : false;
+      }, 50);
+    }
+
+    function autoThemeToggle() {
+      // Next time point of theme toggle
+      var now = new Date();
+      var toggleAt = new Date();
+      var hours = now.getHours();
+      var nightShift = hours >= 19 || hours <=7;
+
+      if (nightShift) {
+        if (hours > 7) {
+          toggleAt.setDate(toggleAt.getDate() + 1);
+        }
+        toggleAt.setHours(7);
+      } else {
+        toggleAt.setHours(19);
+      }
+
+      toggleAt.setMinutes(0);
+      toggleAt.setSeconds(0);
+      toggleAt.setMilliseconds(0)
+
+      var delay = toggleAt.getTime() - now.getTime();
+
+      // auto toggle theme mode
+      setTimeout(function() {
+        handleThemeToggle(!nightShift);
+      }, delay);
+
+      return {
+        nightShift: nightShift,
+        toggleAt: toggleAt.getTime()
+      };
+    }
+
+    // Listen the theme toggle event
+    sw.addEventListener('change', function(event) {
+      handleThemeToggle(event.target.checked);
+    });
+
+    if (nightModeOption == 'auto') {
+      var data = autoThemeToggle();
+
+      // Toggle theme by local setting
+      if (data.toggleAt > themeData.autoToggleAt) {
+        themeData.autoToggleAt = data.toggleAt;
+        handleThemeToggle(data.nightShift);
+      } else {
+        handleThemeToggle(themeData.nightShift);
+      }
+    } else if (nightModeOption == 'manual') {
+      handleThemeToggle(themeData.nightShift);
+    } else {
+      var nightShift = themeData.nightShift;
+      if (nightShift === undefined) {
+        nightShift = nightModeOption === 'on';
+      }
+      handleThemeToggle(nightShift);
+    }
+  })();
+</script>
+<div id="click-to-top" class="click-to-top">
+  <i class="fa fa-arrow-up"></i>
+</div>
+<script>
+  (function () {
+    const clickToTop = document.getElementById('click-to-top');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 100) {
+        clickToTop.classList.add('show')
+      }else {
+        clickToTop.classList.remove('show')
+      }
+    });
+    clickToTop.addEventListener('click', () => {
+      window.smoothScrollTo(0);
+    });
+  })();
+</script>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <div class="framework">
+  <section class="main">
+
+     <div class="post">
+  <section>
+
+
+
+
+
+
+
+
+
+<header class="post-header">
+  <h1 class="post-title p-name" itemprop="name headline">Data Representation &amp; External Sorting Study Note</h1>
+  <h2 class="post-subtitle"></h2>
+
+  <p class="post-meta">
+    <time class="dt-published" datetime="2021-05-07T13:25:34+00:00" itemprop="datePublished"><i class="fa fa-calendar"></i> May 7, 2021
+    </time>
+
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <span class="post-reading-time left-vsplit"><i class="fa fa-clock-o"></i> About 5 mins</span>
+  </p>
+<div class="post-tags">
+<a class="post-tag" href="/blog/tags.html#sql">#sql</a><a class="post-tag" href="/blog/tags.html#study-notes">#study-notes</a><a class="post-tag" href="/blog/tags.html#data-representation">#data-representation</a><a class="post-tag" href="/blog/tags.html#external-sorting">#external-sorting</a>
+</div></header>
+<article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+    <div class="post-content e-content" itemprop="articleBody">
+
+      <ul>
+  <li><a href="#data-representation">Data Representation</a></li>
+  <li>
+<a href="#external-sorting">External Sorting</a>
+    <ul>
+      <li><a href="#basics">Basics</a></li>
+      <li><a href="#2-way-merge-sort-requires-3-buffers">2-Way Merge-sort (Requires 3 Buffers)</a></li>
+      <li>
+<a href="#if-we-have-more-main-memory">If we have more main memory…</a>
+        <ul>
+          <li><a href="#example">Example:</a></li>
+        </ul>
+      </li>
+      <li>
+<a href="#external-merge-sort">External Merge-Sort</a>
+        <ul>
+          <li><a href="#pass-0-sorting">Pass 0 (Sorting)</a></li>
+          <li><a href="#pass-1k-merging">Pass 1/k (Merging)</a></li>
+          <li><a href="#cost-of-external-merge-sort">Cost of External Merge Sort</a></li>
+          <li><a href="#example-1">Example</a></li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="data-representation">Data Representation</h2>
+
+<p>Relational database elements:</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">CREATE</span> <span class="k">TABLE</span> <span class="n">Product</span> <span class="p">(</span>
+    <span class="n">pid</span> <span class="nb">INT</span> <span class="k">PRIMARY</span> <span class="k">KEY</span><span class="p">,</span> <span class="c1">-- Base address (B)</span>
+    <span class="n">name</span> <span class="nb">CHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">),</span>
+    <span class="n">description</span> <span class="n">VARHCAR</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
+    <span class="n">maker</span> <span class="nb">CHAR</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="k">REFERENCES</span> <span class="n">Company</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<ul>
+  <li>A tuple/row is stored as a “record”</li>
+  <li>The storing is similar to how computer stores blocks. We have a header for storing the metadata information, and blocks are stored sequentially after the header. The header includes pointers to blocks of records, length of records, and the timestamps that records the last modified or read time.</li>
+  <li>However, differently, the header (offset table) and blocks are stored from both left and right because it’s easier to add a new block and its metadata information into the free space in the middle.</li>
+</ul>
+
+<figure id="figure-1"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'storing-records-in-blocks'});" href="/blog/assets/figures/storing-records-in-blocks.png"><img src="/blog/assets/figures/storing-records-in-blocks.png" alt="Storing Records in Blocks"></a><figcaption>Figure 1: Storing Records in Blocks [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'storing-records-in-blocks'});" href="/blog/assets/figures/storing-records-in-blocks.png">PNG</a>]</figcaption></figure>
+
+<h2 id="external-sorting">External Sorting</h2>
+
+<p>Problem: Sort large amount of data with little memory.</p>
+
+<h3 id="basics">Basics</h3>
+
+<ul>
+  <li>A block on storage devices loaded into a <em>page</em> in main memory
+    <ul>
+      <li>We sometimes interchange page with block</li>
+    </ul>
+  </li>
+  <li>
+<em>Buffer pages</em>
+    <ul>
+      <li>Often refer to pages in main memory used to store input, output, and intermediate data for an algorithm</li>
+    </ul>
+  </li>
+  <li>Run: a sorted sublist of input data</li>
+  <li>Make a pass through data:
+    <ul>
+      <li>Loading the entire data from disk once</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="2-way-merge-sort-requires-3-buffers">2-Way Merge-sort (Requires 3 Buffers)</h3>
+
+<ul>
+  <li>Pass 0: Read a page, sort it, write it
+    <ul>
+      <li>only one input buffer page is used</li>
+    </ul>
+  </li>
+  <li>Pass 1, 2, …, etc.: merging two runs at a time
+    <ul>
+      <li>two output buffer page is used</li>
+      <li>in total, three buffer pages used.</li>
+    </ul>
+  </li>
+</ul>
+
+<figure id="figure-2"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': '2-way-merge-sort'});" href="/blog/assets/figures/2-way-merge-sort.png"><img src="/blog/assets/figures/2-way-merge-sort.png" alt="2-Way Merge-sort"></a><figcaption>Figure 2: 2-Way Merge-sort [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': '2-way-merge-sort'});" href="/blog/assets/figures/2-way-merge-sort.png">PNG</a>]</figcaption></figure>
+
+<ul>
+  <li>Each pass we read and write each page in file</li>
+  <li>If there are $N$ pages in the file, it means that the number of passes are</li>
+</ul>
+
+<p>$$\lceil \log_2{N} \rceil +1$$</p>
+
+<ul>
+  <li>Total cost:</li>
+</ul>
+
+<p>$$2N(\lceil \log_2{N} \rceil +1)$$</p>
+
+<h3 id="if-we-have-more-main-memory">If we have more main memory…</h3>
+
+<ul>
+  <li>$M$: # of blocks (i.e., pages) in main memory</li>
+  <li>$B(R)$: # of blocks of relation $R$</li>
+</ul>
+
+<h4 id="example">Example:</h4>
+
+<p>$M=5, B(R)=108$</p>
+
+<ol>
+  <li>Sorting: load 5 pages, sort them, write back as run: $ \lceil 108/5 \rceil = \lceil 21.6 \rceil = 21 \text{ runs}$
+    <ul>
+      <li>$21$ runs, $5$ pages/run ($21*5 = 105$ pages)</li>
+      <li>$1$ run, $3$ pages/run</li>
+    </ul>
+  </li>
+  <li>Merging: $(M-1)$-way merging =&gt; 4-way merging
+    <ul>
+      <li>take $4$ runs, $5$ pages/run ($20$-page run)</li>
+      <li>how many runs?</li>
+    </ul>
+  </li>
+</ol>
+
+<h3 id="external-merge-sort">External Merge-Sort</h3>
+
+<h4 id="pass-0-sorting">Pass 0 (Sorting)</h4>
+
+<ul>
+  <li>Load $M$ blocks in memory and sort</li>
+  <li>Result: $\lceil \frac{B(R)}{M} \rceil$ sorted sublists of size $M$</li>
+  <li>Each sorted sublist is a run</li>
+</ul>
+
+<h4 id="pass-1k-merging">Pass 1/k (Merging)</h4>
+
+<ul>
+  <li>Merge $M – 1$ runs into a new run</li>
+  <li>Result: each run has now $M (M – 1)$ blocks <strong>if this pass can finish</strong>.</li>
+  <li>Result: usually, 1 pass of merging is not enough, so each run should have $M(M-1)^k$ blocks</li>
+</ul>
+
+<h4 id="cost-of-external-merge-sort">Cost of External Merge Sort</h4>
+
+<ul>
+  <li>Number of passes: $1+\lceil \log_{M-1}{\lceil B(R)/M \rceil} \rceil$</li>
+  <li>Cost: $2\cdot k\cdot B(R)$, where $k$ is number of passes including sorting.</li>
+</ul>
+
+<h4 id="example-1">Example</h4>
+
+<p>Consider external-sorting a table R which contains 120 blocks of data, using 4 pages of memory buffer.</p>
+
+<p>That is, $B(R) = 120$ and $M = 4$. Note: use all available memory for sorting and merging.</p>
+
+<ol>
+  <li>For each pass (sorting and merging), state the number of runs and the size of runs
+generated by the pass.
+    <ul>
+      <li>Pass 0 (use all pages to sort): Generate 30 runs, the size of each run is 4 pages.</li>
+      <li>Pass 1 (3-way merge): Generate 10 runs, the size of each run is 12 blocks.</li>
+      <li>Pass 2 (3-way merge): Generate 4 runs (3 runs having 36 blocks and 1 run having 12 blocks)</li>
+      <li>Pass 3 (3-way merge): Generate 2 runs (1 run having 108 blocks and 1 run having 12 blocks)</li>
+      <li>Pass 4 (2-way merge): Generate 1 sorted run of 120 blocks</li>
+    </ul>
+  </li>
+  <li>What is the total cost (measured by the number of block I/O’s) of this external-sorting?
+$\text{Total cost} = ( \text{# of passes} ) \times 2 \times ( \text{# of blocks} ) = 5 \times 2 \times 120 = 1200$</li>
+</ol>
+
+<p>Or…</p>
+
+<p>$\text{Total cost} = (1+\lceil \log_3{\lceil 120/4 \rceil} \rceil) \times 2 \times 120 =1200$</p>
+
+
+    </div>
+
+</article>
+<div class="post-nav">
+<a class="previous" href="/blog/computer/2021/05/06/er-model-study-note.html" title="ER Model Study Note">ER Model Study Note</a><span></span>
+</div>
+<div class="post-related">
+      <div>Related Articles</div>
+      <ul>
+        <li><a class="post-link" href="/blog/computer/2021/04/19/query-execution-study-note.html" title="">Query Execution Study Note</a></li>
+<li><a class="post-link" href="/blog/computer/2021/05/07/data-representation-and-external-sorting-study-note.html" title="">Data Representation &amp; External Sorting Study Note</a></li>
+<li><a class="post-link" href="/blog/project/2021/05/04/dsci-550-assignment-3.html" title="">DSCI 550 Assignment 3 (Project Final Visualization)</a></li>
+<li><a class="post-link" href="/blog/computer/2021/05/05/sql-study-note.html" title="">SQL Study Note</a></li>
+</ul>
+    </div>
+<div class="post-comments">  <div id="disqus_thread"></div>
+  <script>
+    var disqus_config = function () {
+      this.page.url = 'https://anthonyive.github.io/blog/computer/2021/05/07/data-representation-and-external-sorting-study-note.html';
+      this.page.identifier = 'https://anthonyive.github.io/blog/computer/2021/05/07/data-representation-and-external-sorting-study-note.html';
+    };
+
+    (function() {
+      var d = document, s = d.createElement('script');
+
+      s.src = 'https://blog-g49frf6rg4.disqus.com/embed.js';
+
+      s.setAttribute('data-timestamp', +new Date());
+      (d.head || d.body).appendChild(s);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a>
+</noscript>
+</div></section>
+</div>
+
+
+  </section>
+  <section class="sidebar" style="margin-left: 15px;">
+    <!-- Get sidebar items --><style type="text/css" media="screen">
+.post-menu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+</style>
+
+<div class="post-menu">
+  <div class="post-menu-title">TOC</div>
+  <div class="post-menu-content"></div>
+</div>
+
+<script>
+  function generateContent() {
+    var menu = document.querySelector(".post-menu");
+    var menuContent =  menu.querySelector(".post-menu-content");
+    var headings = document.querySelector(".post-content").querySelectorAll("h2, h3, h4, h5, h6");
+
+    // Hide menu when no headings
+    if (headings.length === 0) {
+      return menu.style.display = "none";
+    }
+
+    // Generate post menu
+    var menuHTML = '';
+    for (var i = 0; i < headings.length; i++) {
+      var h = headings[i];
+      menuHTML += (
+        '<li class="h-' + h.tagName.toLowerCase() + '">'
+        + '<a href="#h-' + h.getAttribute('id') + '">' + h.textContent + '</a></li>');
+    }
+
+    menuContent.innerHTML = '<ul>' + menuHTML + '</ul>';
+
+    // The header element
+    var header = document.querySelector('header.site-header');
+
+    function doMenuCollapse(index, over_items) {
+      var items = menuContent.firstChild.children;
+
+      if (over_items == undefined) {
+        over_items = 20;
+      }
+
+      if (items.length < over_items) {
+        return;
+      }
+
+      var activeItem = items[index];
+      var beginItem = activeItem
+      var endItem = activeItem
+      var beginIndex = index;
+      var endIndex = index + 1;
+      while (beginIndex >= 0
+        && !items[beginIndex].classList.contains('h-h2')) {
+        beginIndex -= 1;
+      }
+      while (endIndex < items.length
+        && !items[endIndex].classList.contains('h-h2')) {
+        endIndex += 1;
+      }
+      for (var i = 0; i < beginIndex; i++) {
+        item = items[i]
+        if (!item.classList.contains('h-h2')) {
+          item.style.display = 'none';
+        }
+      }
+      for (var i = beginIndex + 1; i < endIndex; i++) {
+        item = items[i]
+        // if (!item.classList.contains('h-h2')) {
+          item.style.display = '';
+        // }
+      }
+      for (var i = endIndex; i < items.length; i++) {
+        item = items[i]
+        if (!item.classList.contains('h-h2')) {
+          item.style.display = 'none';
+        }
+      }
+    }
+
+    // Init menu collapsed
+    doMenuCollapse(-1);
+
+    // Active the menu item
+    window.addEventListener('scroll', function (event) {
+      var lastActive = menuContent.querySelector('.active');
+      var changed = true;
+      var activeIndex = -1;
+      for (var i = headings.length - 1; i >= 0; i--) {
+        var h = headings[i];
+        var headingRect = h.getBoundingClientRect();
+        var headerRect = header.getBoundingClientRect();
+        var headerTop = Math.floor(headerRect.top);
+        var headerHeight = Math.floor(headerRect.height);
+        var headerHeight = headerTop + headerHeight + 20;
+        if (headingRect.top <= headerHeight) {
+          var id = 'h-' + h.getAttribute('id');
+          var a = menuContent.querySelector('a[href="#' + id  + '"]');
+          var curActive = a.parentNode;
+          if (curActive) {
+            curActive.classList.add('active');
+            activeIndex = i;
+          }
+          if (lastActive == curActive) {
+            changed = false;
+          }
+          break;
+        }
+      }
+      if (changed) {
+        if (lastActive) {
+          lastActive.classList.remove('active');
+        }
+        doMenuCollapse(activeIndex);
+      }
+      event.preventDefault();
+    });
+  }
+  generateContent();
+</script>
+</section>
+</div>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/blog/"></data>
+
+  <div class="wrapper">
+    <div class="site-footer-inner">
+<div>Copyright © 2021</div>
+      <div>Powered by <a title="Jekyll is a simple, blog-aware, static site
+      generator." href="https://jekyllrb.com/">Jekyll</a> &amp; <a title="Yat, yet
+      another theme." href="https://github.com/jeffreytse/jekyll-theme-yat">Yat Theme</a>.</div>
+      <div class="footer-col rss-subscribe">Subscribe <a href="/blog/feed.xml">via RSS</a>
+</div>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-translate-customization" content="108d9124921d80c3-80e20d618ff053c8-g4f02ec6f3dba68b7-c">
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Query Execution Study Note | Yuchen’s Blog</title>
+<meta name="generator" content="Jekyll v3.9.2">
+<meta property="og:title" content="Query Execution Study Note">
+<meta name="author" content="Yuchen Zhang">
+<meta property="og:locale" content="en_US">
+<meta name="description" content="Query execution is part of the query processor. The SQL query will be firstly compiled then be executed. A simple diagram shows clearly below.">
+<meta property="og:description" content="Query execution is part of the query processor. The SQL query will be firstly compiled then be executed. A simple diagram shows clearly below.">
+<link rel="canonical" href="https://anthonyive.github.io/blog/computer/2021/04/19/query-execution-study-note.html">
+<meta property="og:url" content="https://anthonyive.github.io/blog/computer/2021/04/19/query-execution-study-note.html">
+<meta property="og:site_name" content="Yuchen’s Blog">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2021-04-19T00:00:00+00:00">
+<meta name="twitter:card" content="summary">
+<meta property="twitter:title" content="Query Execution Study Note">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Yuchen Zhang"},"dateModified":"2021-04-19T00:00:00+00:00","datePublished":"2021-04-19T00:00:00+00:00","description":"Query execution is part of the query processor. The SQL query will be firstly compiled then be executed. A simple diagram shows clearly below.","headline":"Query Execution Study Note","mainEntityOfPage":{"@type":"WebPage","@id":"https://anthonyive.github.io/blog/computer/2021/04/19/query-execution-study-note.html"},"url":"https://anthonyive.github.io/blog/computer/2021/04/19/query-execution-study-note.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="shortcut icon" href="">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-noto-sans@0.0.72/index.min.css">
+  <link rel="stylesheet" href="/blog/assets/css/main.css">
+  <script src="/blog/assets/js/main.js"></script><link type="application/atom+xml" rel="alternate" href="https://anthonyive.github.io/blog/feed.xml" title="Yuchen's Blog">
+<script>
+  function initGoogleAnalytics() {
+    var doNotTrack = (window.doNotTrack === "1" || navigator.doNotTrack === "1" ||
+      navigator.doNotTrack === "yes" || navigator.msDoNotTrack === "1");
+    var enableDNT = "false" == "true";
+
+    if (!enableDNT || !doNotTrack) {
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-199968139-1', 'auto');
+      ga('send', 'pageview');
+    }
+  }
+  window.addEventListener("load", initGoogleAnalytics);
+</script>
+
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/default.min.css">
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js"></script>
+<!-- and it's easy to individually load additional languages -->
+<script charset="UTF-8" src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/languages/go.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+// Init highlight js
+document.addEventListener('DOMContentLoaded', function(event) {
+  var els = document.querySelectorAll('pre code')
+
+  function addLangData(block) {
+    var outer = block.parentElement.parentElement.parentElement;
+    var lang = block.getAttribute('data-lang');
+    for (var i = 0; i < outer.classList.length; i++) {
+      var cls = outer.classList[i];
+      if (cls.startsWith('language-')) {
+        lang = cls;
+        break;
+      }
+    }
+    if (!lang) {
+      cls = block.getAttribute('class');
+      lang = cls ? cls.replace('hljs ', '') : '';
+    }
+    if (lang.startsWith('language-')) {
+      lang = lang.substr(9);
+    }
+    block.setAttribute('class', 'hljs ' + lang);
+    block.parentNode.setAttribute('data-lang', lang);
+  }
+
+  function addBadge(block) {
+    var enabled = ('true' || 'true').toLowerCase();
+    if (enabled == 'true') {
+      var pre = block.parentElement;
+      pre.classList.add('badge');
+    }
+  }
+
+  function handle(block) {
+    addLangData(block);
+    addBadge(block)
+    hljs.highlightBlock(block);
+  }
+
+  for (var i = 0; i < els.length; i++) {
+    var el = els[i];
+    handle(el);
+  }
+});
+</script>
+
+<style>
+  /* code language badge */
+  pre.badge::before {
+    content: attr(data-lang);
+    color: #fff;
+    background-color: #ff4e00;
+    padding: 0 .5em;
+    border-radius: 0 2px;
+    text-transform: uppercase;
+    text-align: center;
+    min-width: 32px;
+    display: inline-block;
+    position: absolute;
+    right: 0;
+  }
+
+  /* fix wrong badge display for firefox browser */
+  code > table pre::before {
+    display: none;
+  }
+</style>
+<script>MathJax={"tex":{"inlineMath":[["$","$"],["\\(","\\)"]],"displayMath":[["$$","$$"],["\\[","\\]"]]},"svg":{"fontCache":"global"}}</script><script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script><script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<header class="site-header " role="banner">
+
+  <div class="wrapper">
+    <div class="site-header-inner">
+<span class="site-brand"><a class="site-brand-inner" rel="author" href="/blog/">
+  <img class="site-favicon" title="Yuchen's Blog" src="" onerror="this.style.display='none'">
+  Yuchen's Blog
+</a>
+</span><nav class="site-nav">
+          <input type="checkbox" id="nav-trigger" class="nav-trigger">
+          <label for="nav-trigger">
+            <span class="menu-icon">
+              <svg viewbox="0 0 18 15" width="18px" height="15px">
+                <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"></path>
+              </svg>
+            </span>
+          </label>
+
+          <div class="trigger">
+<a class="page-link" href="/blog/about.html">ABOUT</a><a class="page-link" href="/blog/archives.html">ARCHIVES</a><a class="page-link" href="/blog/categories.html">CATEGORIES</a><a class="page-link" href="/blog/tags.html">TAGS</a>
+
+
+
+
+</div>
+        </nav>
+</div>
+  </div>
+</header>
+
+<script>
+  function initHeader() {
+    var lastScrollY = getScrollPos().y;
+    var documentElement = document.documentElement;
+
+    function storeScrollData() {
+      var y = getScrollPos().y;var scrollStatus = "";
+
+      if (y <= 0) {
+        scrollStatus = "top";
+      } else if ((window.innerHeight + y) >= document.body.offsetHeight) {
+        scrollStatus = "bottom";
+      } else {
+        var isScrollDown = (y - lastScrollY > 0) ? true : false;
+        scrollStatus = isScrollDown ? "down" : "up";
+      }
+
+      lastScrollY = y;
+      documentElement.setAttribute("data-scroll-status", scrollStatus);
+    }
+
+    window.addEventListener('scroll', function(e) {
+      storeScrollData();
+    });
+
+    storeScrollData();
+  }
+  document.addEventListener('DOMContentLoaded', initHeader);
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+  function hashLocate(hashValue) {
+    hashValue = hashValue.replace(/^.*#h-/, '');
+    hashValue = decodeURIComponent(hashValue);
+    var element = document.getElementById(hashValue);
+
+    if (!element) {
+      return;
+    }
+
+    var header = document.querySelector('header.site-header');
+    var headerRect = header.getBoundingClientRect();
+    var headerTop = Math.floor(headerRect.top);
+    var headerHeight = Math.floor(headerRect.height);
+    var scrollPos = getScrollPos();
+    var offsetY = element.offsetTop - (headerTop + headerHeight + 20);
+
+    if (offsetY == scrollPos.y) {
+      return;
+    }
+
+    if (headerTop == 0  && offsetY > scrollPos.y) {
+      offsetY += headerHeight + 2;
+    } else if (headerTop < 0  && offsetY < scrollPos.y) {
+      offsetY -= headerHeight - 2;
+    }
+
+    smoothScrollTo(offsetY);
+  }
+
+  // The first event occurred
+  window.addEventListener('load', function(event) {
+    if (window.location.hash) {
+      hashLocate(window.location.hash);
+    }
+  });
+
+  // The first event occurred
+  window.addEventListener('click', function(event) {
+    if (event.target.tagName.toLowerCase() == 'a') {
+      hashLocate(event.target.getAttribute('href'));
+    }
+  });
+</script>
+<div class="theme-toggle">
+  <input type="checkbox" id="theme-switch">
+  <label for="theme-switch">
+    <div class="toggle"></div>
+    <div class="names">
+      <p class="light">Light</p>
+      <p class="dark">Dark</p>
+    </div>
+  </label>
+</div>
+
+
+
+
+<script>
+  (function() {
+    var sw = document.getElementById('theme-switch');
+    var html = document.getElementsByTagName('html')[0];
+    var nightModeOption = ('auto' || 'auto').toLowerCase();
+    var storage = nightModeOption === 'manual'
+        ? localStorage
+        : sessionStorage;
+    var themeData = loadThemeData();
+
+    function saveThemeData(data) {
+      storage.setItem('theme', JSON.stringify(data));
+    }
+
+    function loadThemeData() {
+      var data = storage.getItem('theme');
+      try {
+        data = JSON.parse(data ? data : '');
+      } catch(e) {
+        data = { nightShift: undefined, autoToggleAt: 0 };
+        saveThemeData(data);
+      }
+      return data;
+    }
+
+    function handleThemeToggle(nightShift) {
+      themeData.nightShift = nightShift;
+      saveThemeData(themeData);
+      html.dataset.theme = nightShift ? 'dark' : 'light';
+      setTimeout(function() {
+        sw.checked = nightShift ? true : false;
+      }, 50);
+    }
+
+    function autoThemeToggle() {
+      // Next time point of theme toggle
+      var now = new Date();
+      var toggleAt = new Date();
+      var hours = now.getHours();
+      var nightShift = hours >= 19 || hours <=7;
+
+      if (nightShift) {
+        if (hours > 7) {
+          toggleAt.setDate(toggleAt.getDate() + 1);
+        }
+        toggleAt.setHours(7);
+      } else {
+        toggleAt.setHours(19);
+      }
+
+      toggleAt.setMinutes(0);
+      toggleAt.setSeconds(0);
+      toggleAt.setMilliseconds(0)
+
+      var delay = toggleAt.getTime() - now.getTime();
+
+      // auto toggle theme mode
+      setTimeout(function() {
+        handleThemeToggle(!nightShift);
+      }, delay);
+
+      return {
+        nightShift: nightShift,
+        toggleAt: toggleAt.getTime()
+      };
+    }
+
+    // Listen the theme toggle event
+    sw.addEventListener('change', function(event) {
+      handleThemeToggle(event.target.checked);
+    });
+
+    if (nightModeOption == 'auto') {
+      var data = autoThemeToggle();
+
+      // Toggle theme by local setting
+      if (data.toggleAt > themeData.autoToggleAt) {
+        themeData.autoToggleAt = data.toggleAt;
+        handleThemeToggle(data.nightShift);
+      } else {
+        handleThemeToggle(themeData.nightShift);
+      }
+    } else if (nightModeOption == 'manual') {
+      handleThemeToggle(themeData.nightShift);
+    } else {
+      var nightShift = themeData.nightShift;
+      if (nightShift === undefined) {
+        nightShift = nightModeOption === 'on';
+      }
+      handleThemeToggle(nightShift);
+    }
+  })();
+</script>
+<div id="click-to-top" class="click-to-top">
+  <i class="fa fa-arrow-up"></i>
+</div>
+<script>
+  (function () {
+    const clickToTop = document.getElementById('click-to-top');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 100) {
+        clickToTop.classList.add('show')
+      }else {
+        clickToTop.classList.remove('show')
+      }
+    });
+    clickToTop.addEventListener('click', () => {
+      window.smoothScrollTo(0);
+    });
+  })();
+</script>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <div class="framework">
+  <section class="main">
+
+     <div class="post">
+  <section>
+
+
+
+
+
+
+
+
+
+<header class="post-header">
+  <h1 class="post-title p-name" itemprop="name headline">Query Execution Study Note</h1>
+  <h2 class="post-subtitle"></h2>
+
+  <p class="post-meta">
+    <time class="dt-published" datetime="2021-04-19T00:00:00+00:00" itemprop="datePublished"><i class="fa fa-calendar"></i> Apr 19, 2021
+    </time>
+
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <span class="post-reading-time left-vsplit"><i class="fa fa-clock-o"></i> About 14 mins</span>
+  </p>
+<div class="post-tags">
+<a class="post-tag" href="/blog/tags.html#study-notes">#study-notes</a><a class="post-tag" href="/blog/tags.html#sql">#sql</a><a class="post-tag" href="/blog/tags.html#query-execution">#query-execution</a>
+</div></header>
+<article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+    <div class="post-content e-content" itemprop="articleBody">
+
+      <p>Query execution is part of the query processor. The SQL query will be firstly compiled then be executed. A simple diagram shows clearly below.</p>
+
+<figure id="figure-1"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'query-processor'});" href="/blog/assets/figures/query-processor.png"><img src="/blog/assets/figures/query-processor.png" alt="Components of Query Processor"></a><figcaption>Figure 1: Components of Query Processor [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'query-processor'});" href="/blog/assets/figures/query-processor.png">PNG</a>]</figcaption></figure>
+
+<p>This note is mainly on query execution.</p>
+
+<h2 id="table-of-contents">Table of Contents</h2>
+
+<ul>
+  <li><a href="#table-of-contents">Table of Contents</a></li>
+  <li>
+<a href="#cost-model">Cost Model</a>
+    <ul>
+      <li><a href="#why-and-some-assumptions">Why? And Some Assumptions</a></li>
+      <li><a href="#cost-parameters">Cost parameters</a></li>
+      <li>
+<a href="#two-types-of-scanning-tables">Two Types of Scanning Tables</a>
+        <ul>
+          <li><a href="#clustered">Clustered</a></li>
+          <li><a href="#unclustered">Unclustered</a></li>
+        </ul>
+      </li>
+      <li>
+<a href="#cost-of-the-scan-operator">Cost of the Scan Operator</a>
+        <ul>
+          <li><a href="#clsutered-relation">Clsutered relation</a></li>
+          <li><a href="#unclustered-relation">Unclustered relation</a></li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li>
+<a href="#classification-of-physical-operators">Classification of Physical Operators</a>
+    <ul>
+      <li>
+<a href="#one-pass-algorithms">One-pass Algorithms</a>
+        <ul>
+          <li><a href="#selection-sigmar-and-projection-pir">Selection, $\sigma(R)$ and Projection, $\Pi(R)$</a></li>
+          <li><a href="#duplicate-elimination-deltar">Duplicate elimination, $\delta(R)$</a></li>
+          <li><a href="#grouping-gamma_textcity-sumpricer">Grouping, $\gamma_{\text{city, sum(price)}}(R)$</a></li>
+          <li><a href="#binary-operations-rcap-s-rcup-s-r-s-rbowtie-s">Binary operations, $R\cap S, R\cup S, R-S, R\bowtie S$</a></li>
+        </ul>
+      </li>
+      <li>
+<a href="#nested-loop-join-algorithms">Nested-Loop Join Algorithms</a>
+        <ul>
+          <li><a href="#tuple-based-nested-loop-joins">Tuple-based Nested Loop Joins</a></li>
+          <li><a href="#block-based-nested-loop-joins">Block-based Nested Loop Joins</a></li>
+        </ul>
+      </li>
+      <li>
+<a href="#two-pass-algorithms-based-on-sorting">Two-pass Algorithms Based on Sorting</a>
+        <ul>
+          <li><a href="#duplicate-elimination-deltar-based-on-sorting">Duplicate Elimination $\delta(R)$ Based on Sorting</a></li>
+          <li><a href="#grouping-gamma_textcity-sumpricer-based-on-sorting">Grouping $\gamma_{\text{city, sum(price)}}(R)$ Based on Sorting</a></li>
+          <li><a href="#binary-operations-rcap-s-rcup-s-r-s-based-on-sorting">Binary operations $R\cap S, R\cup S, R-S$ Based on Sorting</a></li>
+          <li><a href="#sort-merge-join">Sort-Merge Join</a></li>
+          <li><a href="#simple-sort-based-join">Simple Sort-based Join</a></li>
+        </ul>
+      </li>
+      <li>
+<a href="#two-pass-algorithms-based-on-hashing">Two-pass Algorithms Based on Hashing</a>
+        <ul>
+          <li><a href="#duplicate-elimination-deltar-based-on-hashing">Duplicate Elimination $\delta(R)$ Based on Hashing</a></li>
+          <li><a href="#partitioned-hash-join">Partitioned Hash-Join</a></li>
+        </ul>
+      </li>
+      <li>
+<a href="#index-based-algorithms">Index-Based Algorithms</a>
+        <ul>
+          <li><a href="#index-based-selection-sigma_avr">Index-Based Selection, $\sigma_{a=v}(R)$</a></li>
+          <li><a href="#index-based-join-rbowtie-s">Index-Based Join, $R\bowtie S$</a></li>
+          <li><a href="#index-based-join-with-two-indices">Index-Based Join with Two Indices</a></li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="cost-model">Cost Model</h2>
+
+<h3 id="why-and-some-assumptions">Why? And Some Assumptions</h3>
+
+<ul>
+  <li>Important in query optimization</li>
+  <li>Here we consider <mark>I/O cost only</mark>
+</li>
+  <li>
+<mark>We assume operands are relations stored on disk, but operator
+results will be left in main memory</mark> (e.g., pipelined to next
+operator in query plan)</li>
+  <li>So we <mark>don’t include the cost of writing the result</mark>
+</li>
+</ul>
+
+<p>We will also need some notations, aka, cost parameters.</p>
+
+<h3 id="cost-parameters">Cost parameters</h3>
+
+<ul>
+  <li>$M$ = number of blocks/pages that are available in main memory</li>
+  <li>$B(R)$ = number of blocks holding $R$</li>
+  <li>$T(R)$ = number of tuples in $R$</li>
+  <li>$V(R,a)$ = number of distinct values of the attribute $a$ of $R$</li>
+</ul>
+
+<h3 id="two-types-of-scanning-tables">Two Types of Scanning Tables</h3>
+
+<h4 id="clustered">Clustered</h4>
+
+<p>The table is clustered (i.e., block consists only of records from this table)</p>
+
+<ul>
+  <li># of I/O’s = # of blocks</li>
+</ul>
+
+<h4 id="unclustered">Unclustered</h4>
+
+<p>The table is unclustered (e.g. its records are placed in blocks with those of other tables)</p>
+
+<ul>
+  <li>May need one block read for each record</li>
+</ul>
+
+<figure id="figure-2"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'clustered-unclustered'});" href="/blog/assets/figures/clustered-unclustered.png"><img src="/blog/assets/figures/clustered-unclustered.png" alt="Scanning Clustered/Uncluserted Tables"></a><figcaption>Figure 2: Scanning Clustered/Uncluserted Tables [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'clustered-unclustered'});" href="/blog/assets/figures/clustered-unclustered.png">PNG</a>]</figcaption></figure>
+
+<h3 id="cost-of-the-scan-operator">Cost of the Scan Operator</h3>
+
+<h4 id="clsutered-relation">Clsutered relation</h4>
+
+<ul>
+  <li><mark>We assume clustered relations to estimate the costs of other physical operators. </mark></li>
+  <li>Table scan: $B(R)$</li>
+</ul>
+
+<h4 id="unclustered-relation">Unclustered relation</h4>
+
+<ul>
+  <li>Table scan: $T(R)$</li>
+</ul>
+
+<h2 id="classification-of-physical-operators">Classification of Physical Operators</h2>
+
+<h3 id="one-pass-algorithms">One-pass Algorithms</h3>
+
+<h4 id="selection-sigmar-and-projection-pir">Selection, $\sigma(R)$ and Projection, $\Pi(R)$</h4>
+
+<ul>
+  <li>Both are <em><u>tuple-at-a-time</u></em> algorithms</li>
+  <li>
+<strong>Cost</strong>: $B(R)$</li>
+</ul>
+
+<figure id="figure-3"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'selection-projection'});" href="/blog/assets/figures/selection-projection.png"><img src="/blog/assets/figures/selection-projection.png" alt="Selection and projection diagram"></a><figcaption>Figure 3: Selection and projection diagram [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'selection-projection'});" href="/blog/assets/figures/selection-projection.png">PNG</a>]</figcaption></figure>
+
+<h4 id="duplicate-elimination-deltar">Duplicate elimination, $\delta(R)$</h4>
+
+<ul>
+  <li>Assumption: $B(\delta(R)) \le M-2$, or roughly $M$</li>
+  <li>It needs to keep a dictionary in memory
+    <ul>
+      <li>Balanced Search Tree (BST)</li>
+      <li>Hash Table</li>
+      <li>Etc.</li>
+    </ul>
+  </li>
+  <li>
+<strong>Cost</strong>: $B(R)$</li>
+</ul>
+
+<figure id="figure-4"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'duplicate-elimination'});" href="/blog/assets/figures/duplicate-elimination.png"><img src="/blog/assets/figures/duplicate-elimination.png" alt="Duplicate elimination diagram"></a><figcaption>Figure 4: Duplicate elimination diagram [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'duplicate-elimination'});" href="/blog/assets/figures/duplicate-elimination.png">PNG</a>]</figcaption></figure>
+
+<h4 id="grouping-gamma_textcity-sumpricer">Grouping, $\gamma_{\text{city, sum(price)}}(R)$</h4>
+
+<ul>
+  <li>Assumption: number of cities and sums fit in memory</li>
+  <li>It also needs to keep a dictionary in memory
+    <ul>
+      <li>In addition, it also stores the sum(price) for each city</li>
+    </ul>
+  </li>
+  <li>
+<strong>Cost</strong>: $B(R)$</li>
+</ul>
+
+<h4 id="binary-operations-rcap-s-rcup-s-r-s-rbowtie-s">Binary operations, $R\cap S, R\cup S, R-S, R\bowtie S$</h4>
+
+<ul>
+  <li>Assumption: $\text{min}(B(R), B(S)) \le M-2$, or roughly M</li>
+  <li>Scan a smaller table of R and S into main memory, then read the other one, block by block</li>
+  <li>
+<strong>Cost</strong>: $B(R)+B(S)$, assume both are clustered</li>
+  <li>Example: $R\cap S$
+    <ul>
+      <li>Assumption: set-based, no duplicates</li>
+      <li>Read $S$ into $M-2$ buffers and build a search structure</li>
+      <li>Read each block of $R$, and for each tuple $t$ of $R$, see if $t$ is also in $S$</li>
+      <li>If so, copy $t$ to the output; if not, ignore $t$</li>
+    </ul>
+  </li>
+</ul>
+
+<figure id="figure-5"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'one-pass-join'});" href="/blog/assets/figures/one-pass-join.png"><img src="/blog/assets/figures/one-pass-join.png" alt="One-pass join algorithm diagram"></a><figcaption>Figure 5: One-pass join algorithm diagram [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'one-pass-join'});" href="/blog/assets/figures/one-pass-join.png">PNG</a>]</figcaption></figure>
+
+<h3 id="nested-loop-join-algorithms">Nested-Loop Join Algorithms</h3>
+
+<h4 id="tuple-based-nested-loop-joins">Tuple-based Nested Loop Joins</h4>
+
+<ul>
+  <li>$R\bowtie S$</li>
+  <li>Assumption: Neither relation is clustered</li>
+  <li>Pseudo-Python-Code
+    <div class="language-python highlighter-rouge">
+<div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">R</span><span class="p">:</span> <span class="c1"># r is a tuple in R
+</span>  <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">S</span><span class="p">:</span> <span class="c1"># s is a tuple in S
+</span>    <span class="k">if</span> <span class="n">canBeJoined</span><span class="p">(</span><span class="n">r</span><span class="p">,</span><span class="n">s</span><span class="p">):</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span><span class="n">s</span><span class="p">)</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+<strong>Cost</strong>: $T(R)T(S)$</li>
+</ul>
+
+<h4 id="block-based-nested-loop-joins">Block-based Nested Loop Joins</h4>
+
+<ul>
+  <li>$R\bowtie S$
+    <ul>
+      <li>$R$ is the outer relation, $S$ is the inner relation</li>
+    </ul>
+  </li>
+  <li>Assumption
+    <ul>
+      <li>Both relation are clustered</li>
+      <li>$B(R) \le B(S)$ and $B(S) &gt; M$</li>
+    </ul>
+  </li>
+  <li>
+    <p>Pseudo-Python-Code</p>
+
+    <div class="language-python highlighter-rouge">
+<div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="n">br</span> <span class="ow">in</span> <span class="n">R</span><span class="p">:</span> <span class="c1"># (M-2) blocks of br
+</span>  <span class="k">for</span> <span class="n">bs</span> <span class="ow">in</span> <span class="n">S</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">br</span><span class="p">:</span> <span class="c1"># r is a tuple in R
+</span>      <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">bs</span><span class="p">:</span> <span class="c1"># s is a tuple in S
+</span>        <span class="k">if</span> <span class="n">canBeJoined</span><span class="p">(</span><span class="n">r</span><span class="p">,</span><span class="n">s</span><span class="p">):</span>
+          <span class="k">return</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span><span class="n">s</span><span class="p">)</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+<strong>Cost</strong> ($M\ge 3$ in order for $M-2\ge 1$)
+    <ul>
+      <li>If R is the outer relation
+$$ B(R)+\frac{B(R)B(S)}{M-2} $$
+where $B(R)$ is the cost of reading $R$ once, $\frac{B(R)}{M-2}$ is the number of outer loop runs. Each run needs to read $S$, so the latter is multiplied by $B(S)$.</li>
+      <li>If S is the outer relation
+$$ B(S)+\frac{B(R)B(S)}{M-2} $$</li>
+    </ul>
+  </li>
+  <li>Takeaway: It is better to <mark>iterate over the smaller relation first</mark>
+</li>
+</ul>
+
+<h3 id="two-pass-algorithms-based-on-sorting">Two-pass Algorithms Based on Sorting</h3>
+
+<figure id="figure-6"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'sorting-hashing'});" href="/blog/assets/figures/sorting-hashing.png"><img src="/blog/assets/figures/sorting-hashing.png" alt="Sorting vs. Hashing"></a><figcaption>Figure 6: Sorting vs. Hashing [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'sorting-hashing'});" href="/blog/assets/figures/sorting-hashing.png">PNG</a>]</figcaption></figure>
+
+<p><strong>Sort-based vs. Hash-based Algorithms</strong></p>
+
+<ul>
+  <li>Sort-based algorithms sometimes allow us to produce a result in sorted order and take advantage of that sort later</li>
+  <li>Hash-based algorithms for binary operations have a size requirement only on the smaller of two input relations</li>
+  <li>Hash-based algorithm depends on the <mark>buckets being of equal size</mark>, which may not be true if data are skewed</li>
+</ul>
+
+<h4 id="duplicate-elimination-deltar-based-on-sorting">Duplicate Elimination $\delta(R)$ Based on Sorting</h4>
+
+<ul>
+  <li>Idea: Sort first, then eliminate duplicates</li>
+  <li>Assumption: $B(R) \le M^2$ (roughly)
+    <ul>
+      <li>$B(R)/M$ is # of runs</li>
+      <li># of runs has to be smaller than or equal to $M-1$ to complete the merging in the second pass</li>
+      <li>Therefore, $B(R)/M \le M-1$</li>
+    </ul>
+  </li>
+  <li>Steps
+    <ul>
+      <li>Pass 1: sort runs of size $M$ and then write
+        <ul>
+          <li>Cost: $2B(R)$</li>
+        </ul>
+      </li>
+      <li>Pass 2: merge $M-1$ runs, but include each tuple only once
+        <ul>
+          <li>Cost: $B(R)$</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li>
+<strong>Cost</strong>: $3B(R)$</li>
+</ul>
+
+<h4 id="grouping-gamma_textcity-sumpricer-based-on-sorting">Grouping $\gamma_{\text{city, sum(price)}}(R)$ Based on Sorting</h4>
+
+<ul>
+  <li>Assumption: $B(R) \le M^2$</li>
+  <li>Steps
+    <ul>
+      <li>Pass 1: sort runs of size $M$ and then write
+        <ul>
+          <li>Cost: $2B(R)$</li>
+        </ul>
+      </li>
+      <li>Pass 2: merge $M-1$ runs, but include each tuple only once. <mark>Also, compute sum(price) for group during the merge phase (new compared to duplicate elimination based on sorting)</mark>
+        <ul>
+          <li>Cost: $B(R)$</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li>
+<strong>Cost</strong>: $3B(R)$</li>
+</ul>
+
+<h4 id="binary-operations-rcap-s-rcup-s-r-s-based-on-sorting">Binary operations $R\cap S, R\cup S, R-S$ Based on Sorting</h4>
+
+<p>Note that join operator ($\bowtie$) is not included this time. Why? Because there are a large number of tuples with the same value on the join attribute(s), however the buffer can not hold all joining tuples (with the same value on join attribute) for at least one relation.</p>
+
+<ul>
+  <li>Idea: Sort $R$, sort $S$, then do their binary operations</li>
+  <li>Assumption: $B(R)+B(S) \le M^2$ (roughly)</li>
+  <li>Steps
+    <ul>
+      <li>Pass 1: Split $R$ into runs of size $M$, then split $S$ into runs of size $M$
+        <ul>
+          <li>Cost: $2B(R)+2B(S)$</li>
+        </ul>
+      </li>
+      <li>Pass 2: Merge $M-1$ runs from $R$ and $S$, then output a tuple on a case by cases basis
+        <ul>
+          <li>Cost: $B(R)$</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li>
+<strong>Cost</strong>: $3B(R)+3B(S)$</li>
+</ul>
+
+<figure id="figure-7"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': '2-pass-merging'});" href="/blog/assets/figures/2-pass-merging.png"><img src="/blog/assets/figures/2-pass-merging.png" alt="Merging diagram"></a><figcaption>Figure 7: Merging diagram [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': '2-pass-merging'});" href="/blog/assets/figures/2-pass-merging.png">PNG</a>]</figcaption></figure>
+
+<h4 id="sort-merge-join">Sort-Merge Join</h4>
+
+<ul>
+  <li>Assumption:
+    <ul>
+      <li>The buffer is enough to hold join tuples for at least one relation
+        <ul>
+          <li>Note that the buffer also needs to hold a block for each run of the other relation</li>
+        </ul>
+      </li>
+      <li>$B(R)+B(S) \le M^2$ (roughly)</li>
+    </ul>
+  </li>
+  <li>
+<strong>Cost</strong>: $3B(R)+3B(S)$</li>
+</ul>
+
+<h4 id="simple-sort-based-join">Simple Sort-based Join</h4>
+
+<ul>
+  <li>Idea: Sort $R$, sort $S$, then do their binary operations</li>
+  <li>Assumption: $B(R)\le M^2$, $B(S)\le M^2$, and at least one set of the tuples with a common value for the join attributes fit in $M$ (or $M-2$ to be exact)
+    <ul>
+      <li>Note that we only need one page buffer for the other relation</li>
+    </ul>
+  </li>
+  <li>Steps
+    <ul>
+      <li>Step 1: Start by completely sorting both $R$ and $S$ on the join attribute (assuming this can be done in 2 passes):
+        <ul>
+          <li>Cost: $4B(R)+4B(S)$, because we need to write result to disk</li>
+        </ul>
+      </li>
+      <li>Step 2: Read both relations in sorted order, match tuples
+        <ul>
+          <li>Cost: $B(R)+B(S)$</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li>
+<strong>Cost</strong>: $5B(R)+5B(S)$</li>
+  <li>Note
+    <ul>
+      <li>Can use as many buffers as possible to load join tuples from one relation (with the same join value), say $R$
+        <ul>
+          <li>Only one buffer is needed for the other relation, say $S$</li>
+        </ul>
+      </li>
+      <li>If we still can not fit all join tuples from $R$
+        <ul>
+          <li>Need to use nested loop algorithm, higher cost</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="two-pass-algorithms-based-on-hashing">Two-pass Algorithms Based on Hashing</h3>
+
+<h4 id="duplicate-elimination-deltar-based-on-hashing">Duplicate Elimination $\delta(R)$ Based on Hashing</h4>
+
+<ul>
+  <li>Idea
+    <ul>
+      <li>Partition a relation R into buckets on disk. Each bucket has size approximately $B(R)/M$</li>
+      <li>Does each bucket fit in main memory?
+        <ul>
+          <li>Yes if $B(R)/(M-1) \le M-2$ (i.e., approx. $B(R) \le M^2$)</li>
+        </ul>
+      </li>
+      <li>Apply the one-pass duplicate elimination $\delta$ algorithm for each $R_i$</li>
+    </ul>
+  </li>
+  <li>Assumption: $B(R) \le M^2$ (roughly)
+    <ul>
+      <li>Exact: $B(R)/(M-1) \le M-2$</li>
+    </ul>
+  </li>
+  <li>Steps
+    <ul>
+      <li>Step 1: Partition $R$ into $M-1$ buckets</li>
+      <li>Step 2: Apply $\delta$ to each bucket (must read it into main memory)</li>
+    </ul>
+  </li>
+  <li>
+<strong>Cost</strong>: $3B(R)$</li>
+</ul>
+
+<figure id="figure-8"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': '2-pass-delta'});" href="/blog/assets/figures/2-pass-delta.png"><img src="/blog/assets/figures/2-pass-delta.png" alt="Two-pass Duplicate Elimination Diagram Based on Hashing"></a><figcaption>Figure 8: Two-pass Duplicate Elimination Diagram Based on Hashing [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': '2-pass-delta'});" href="/blog/assets/figures/2-pass-delta.png">PNG</a>]</figcaption></figure>
+
+<h4 id="partitioned-hash-join">Partitioned Hash-Join</h4>
+
+<ul>
+  <li>Assumption: $\text{min}(B(R),B(S)) \le M^2$
+    <ul>
+      <li>Exact: $\frac{\text{min}(B(R),B(S))}{M-1} \le M-3$</li>
+      <li>If we don’t use hash table to speed up the lookup: $\frac{\text{min}(B(R),B(S))}{M-1} \le M-2$</li>
+    </ul>
+  </li>
+  <li>Steps
+    <ul>
+      <li>Step 1
+        <ul>
+          <li>Hash $S$ into $M$ - 1 bucket</li>
+          <li>Send all buckets to disk</li>
+        </ul>
+      </li>
+      <li>Step 2
+        <ul>
+          <li>Hash $R$ into $M$ - 1 bucket</li>
+          <li>Send all buckets to disk</li>
+        </ul>
+      </li>
+      <li>Step 3
+        <ul>
+          <li>Join every pair of <em>corresponding</em> buckets</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li>
+<strong>Cost</strong>: $3B(R)+3B(S)$</li>
+</ul>
+
+<figure id="figure-9"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'partitioned-hash-join-pass-1'});" href="/blog/assets/figures/partitioned-hash-join-pass-1.png"><img src="/blog/assets/figures/partitioned-hash-join-pass-1.png" alt="Partitioned Hash-Join Pass 1 (Steps 1&amp;2) Diagram"></a><figcaption>Figure 9: Partitioned Hash-Join Pass 1 (Steps 1&amp;2) Diagram [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'partitioned-hash-join-pass-1'});" href="/blog/assets/figures/partitioned-hash-join-pass-1.png">PNG</a>]</figcaption></figure>
+
+<figure id="figure-10"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'partitioned-hash-join-pass-2'});" href="/blog/assets/figures/partitioned-hash-join-pass-2.png"><img src="/blog/assets/figures/partitioned-hash-join-pass-2.png" alt="Partitioned Hash-Join Pass 2 (Steps 3) Diagram"></a><figcaption>Figure 10: Partitioned Hash-Join Pass 2 (Steps 3) Diagram [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'partitioned-hash-join-pass-2'});" href="/blog/assets/figures/partitioned-hash-join-pass-2.png">PNG</a>]</figcaption></figure>
+
+<h3 id="index-based-algorithms">Index-Based Algorithms</h3>
+
+<p>The existence of an index on one ore more
+attributes of a relation makes available some
+algorithms that would not be feasible without the
+index
+• Useful for selection operations
+• Also, algorithms for join and other binary
+operations use indexes to good advantage</p>
+
+<h4 id="index-based-selection-sigma_avr">Index-Based Selection, $\sigma_{a=v}(R)$</h4>
+
+<ul>
+  <li>Assumption: We here ignored the cost of reading index blocks</li>
+  <li>
+<strong>Cost</strong>
+    <ul>
+      <li>Clustered index on attribute $a$: $B(R)/V(R,a)$</li>
+      <li>Unclustered index on attribute $a$: $T(R)/V(R,a)$</li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="index-based-join-rbowtie-s">Index-Based Join, $R\bowtie S$</h4>
+
+<ul>
+  <li>Assumption: Assume $S$ has an index on the join attribute</li>
+  <li>Steps
+    <ul>
+      <li>Iterate over $R$, for each tuple, fetch corresponding tuple $s$ from $S$</li>
+    </ul>
+  </li>
+  <li>
+<strong>Cost</strong>
+    <ul>
+      <li>Clustered index
+$$B(R) + \frac{T(R)B(S)}{V(S,a)}$$</li>
+      <li>Unclustered index
+$$B(R) + \frac{T(R)T(S)}{V(S,a)}$$</li>
+    </ul>
+  </li>
+  <li>Indexed-Based Join vs NLJ
+    <ul>
+      <li>Recall the cost for Nested Loop Join (NLJ), assume both $R$ and $S$ are clustered
+$$B(R) + \frac{B(R)B(S)}{M-2}$$</li>
+      <li>Index-Based wins NLJ if:
+        <ul>
+          <li>$$\frac{T(R)}{V(S,a)} &lt; \frac{B(R)}{M-2}$$, or</li>
+          <li>$$V(S,a) &gt; (M-2) \cdot \frac{T(R)}{B(R)}$$</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<figure id="figure-11"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'IBJ-clustered'});" href="/blog/assets/figures/IBJ-clustered.png"><img src="/blog/assets/figures/IBJ-clustered.png" alt="Index-Based Join: Clustered Index Diagram"></a><figcaption>Figure 11: Index-Based Join: Clustered Index Diagram [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'IBJ-clustered'});" href="/blog/assets/figures/IBJ-clustered.png">PNG</a>]</figcaption></figure>
+
+<figure id="figure-12"><a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'IBJ-unclustered'});" href="/blog/assets/figures/IBJ-unclustered.png"><img src="/blog/assets/figures/IBJ-unclustered.png" alt="Index-Based Join: Unclustered Index Diagram"></a><figcaption>Figure 12: Index-Based Join: Unclustered Index Diagram [<a onclick="ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'IBJ-unclustered'});" href="/blog/assets/figures/IBJ-unclustered.png">PNG</a>]</figcaption></figure>
+
+<h4 id="index-based-join-with-two-indices">Index-Based Join with Two Indices</h4>
+
+<ul>
+  <li>Assumption: Assume both $R$ and $S$ have a clustered index (e.g., B+-tree) on the join attribute</li>
+  <li>Then can perform a sort-merge join where sorting is already done (for free)</li>
+  <li>
+<strong>Cost</strong>: $B(R) + B(S)$</li>
+</ul>
+
+
+    </div>
+
+</article>
+<div class="post-nav">
+<a class="previous" href="/blog/blog/2021/04/11/my-first-blog-post.html" title="My First Blog Post">My First Blog Post</a><a class="next" href="/blog/project/2021/05/04/dsci-550-assignment-3.html" title="DSCI 550 Assignment 3 (Project Final Visualization)">DSCI 550 Assignment 3 (Project Final...</a>
+</div>
+<div class="post-related">
+      <div>Related Articles</div>
+      <ul>
+        <li><a class="post-link" href="/blog/computer/2021/05/05/sql-study-note.html" title="DSCI 550 Assignment 3 (Project Final Visualization)">SQL Study Note</a></li>
+<li><a class="post-link" href="/blog/project/2021/05/04/walmart-product-search-demo.html" title="DSCI 550 Assignment 3 (Project Final Visualization)">Walmart Product Search Project with Demo</a></li>
+<li><a class="post-link" href="/blog/computer/2021/05/06/constraints-and-views-study-note.html" title="DSCI 550 Assignment 3 (Project Final Visualization)">Constraints and Views Study Note</a></li>
+<li><a class="post-link" href="/blog/project/2021/05/04/dsci-550-assignment-3.html" title="DSCI 550 Assignment 3 (Project Final Visualization)">DSCI 550 Assignment 3 (Project Final Visualization)</a></li>
+</ul>
+    </div>
+<div class="post-comments">  <div id="disqus_thread"></div>
+  <script>
+    var disqus_config = function () {
+      this.page.url = 'https://anthonyive.github.io/blog/computer/2021/04/19/query-execution-study-note.html';
+      this.page.identifier = 'https://anthonyive.github.io/blog/computer/2021/04/19/query-execution-study-note.html';
+    };
+
+    (function() {
+      var d = document, s = d.createElement('script');
+
+      s.src = 'https://blog-g49frf6rg4.disqus.com/embed.js';
+
+      s.setAttribute('data-timestamp', +new Date());
+      (d.head || d.body).appendChild(s);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a>
+</noscript>
+</div></section>
+</div>
+
+
+  </section>
+  <section class="sidebar" style="margin-left: 15px;">
+    <!-- Get sidebar items --><style type="text/css" media="screen">
+.post-menu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+</style>
+
+<div class="post-menu">
+  <div class="post-menu-title">TOC</div>
+  <div class="post-menu-content"></div>
+</div>
+
+<script>
+  function generateContent() {
+    var menu = document.querySelector(".post-menu");
+    var menuContent =  menu.querySelector(".post-menu-content");
+    var headings = document.querySelector(".post-content").querySelectorAll("h2, h3, h4, h5, h6");
+
+    // Hide menu when no headings
+    if (headings.length === 0) {
+      return menu.style.display = "none";
+    }
+
+    // Generate post menu
+    var menuHTML = '';
+    for (var i = 0; i < headings.length; i++) {
+      var h = headings[i];
+      menuHTML += (
+        '<li class="h-' + h.tagName.toLowerCase() + '">'
+        + '<a href="#h-' + h.getAttribute('id') + '">' + h.textContent + '</a></li>');
+    }
+
+    menuContent.innerHTML = '<ul>' + menuHTML + '</ul>';
+
+    // The header element
+    var header = document.querySelector('header.site-header');
+
+    function doMenuCollapse(index, over_items) {
+      var items = menuContent.firstChild.children;
+
+      if (over_items == undefined) {
+        over_items = 20;
+      }
+
+      if (items.length < over_items) {
+        return;
+      }
+
+      var activeItem = items[index];
+      var beginItem = activeItem
+      var endItem = activeItem
+      var beginIndex = index;
+      var endIndex = index + 1;
+      while (beginIndex >= 0
+        && !items[beginIndex].classList.contains('h-h2')) {
+        beginIndex -= 1;
+      }
+      while (endIndex < items.length
+        && !items[endIndex].classList.contains('h-h2')) {
+        endIndex += 1;
+      }
+      for (var i = 0; i < beginIndex; i++) {
+        item = items[i]
+        if (!item.classList.contains('h-h2')) {
+          item.style.display = 'none';
+        }
+      }
+      for (var i = beginIndex + 1; i < endIndex; i++) {
+        item = items[i]
+        // if (!item.classList.contains('h-h2')) {
+          item.style.display = '';
+        // }
+      }
+      for (var i = endIndex; i < items.length; i++) {
+        item = items[i]
+        if (!item.classList.contains('h-h2')) {
+          item.style.display = 'none';
+        }
+      }
+    }
+
+    // Init menu collapsed
+    doMenuCollapse(-1);
+
+    // Active the menu item
+    window.addEventListener('scroll', function (event) {
+      var lastActive = menuContent.querySelector('.active');
+      var changed = true;
+      var activeIndex = -1;
+      for (var i = headings.length - 1; i >= 0; i--) {
+        var h = headings[i];
+        var headingRect = h.getBoundingClientRect();
+        var headerRect = header.getBoundingClientRect();
+        var headerTop = Math.floor(headerRect.top);
+        var headerHeight = Math.floor(headerRect.height);
+        var headerHeight = headerTop + headerHeight + 20;
+        if (headingRect.top <= headerHeight) {
+          var id = 'h-' + h.getAttribute('id');
+          var a = menuContent.querySelector('a[href="#' + id  + '"]');
+          var curActive = a.parentNode;
+          if (curActive) {
+            curActive.classList.add('active');
+            activeIndex = i;
+          }
+          if (lastActive == curActive) {
+            changed = false;
+          }
+          break;
+        }
+      }
+      if (changed) {
+        if (lastActive) {
+          lastActive.classList.remove('active');
+        }
+        doMenuCollapse(activeIndex);
+      }
+      event.preventDefault();
+    });
+  }
+  generateContent();
+</script>
+</section>
+</div>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/blog/"></data>
+
+  <div class="wrapper">
+    <div class="site-footer-inner">
+<div>Copyright © 2021</div>
+      <div>Powered by <a title="Jekyll is a simple, blog-aware, static site
+      generator." href="https://jekyllrb.com/">Jekyll</a> &amp; <a title="Yat, yet
+      another theme." href="https://github.com/jeffreytse/jekyll-theme-yat">Yat Theme</a>.</div>
+      <div class="footer-col rss-subscribe">Subscribe <a href="/blog/feed.xml">via RSS</a>
+</div>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

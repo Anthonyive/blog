@@ -1,0 +1,2094 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.2">Jekyll</generator><link href="https://anthonyive.github.io/blog/feed.xml" rel="self" type="application/atom+xml" /><link href="https://anthonyive.github.io/blog/" rel="alternate" type="text/html" /><updated>2022-06-06T22:44:46+00:00</updated><id>https://anthonyive.github.io/blog/feed.xml</id><title type="html">Yuchen’s Blog</title><subtitle>Yuchen Zhang's Personal Blog. </subtitle><author><name>Yuchen Zhang</name></author><entry><title type="html">Data Representation &amp;amp; External Sorting Study Note</title><link href="https://anthonyive.github.io/blog/computer/2021/05/07/data-representation-and-external-sorting-study-note.html" rel="alternate" type="text/html" title="Data Representation &amp;amp; External Sorting Study Note" /><published>2021-05-07T13:25:34+00:00</published><updated>2021-05-07T13:25:34+00:00</updated><id>https://anthonyive.github.io/blog/computer/2021/05/07/data-representation-and-external-sorting-study-note</id><content type="html" xml:base="https://anthonyive.github.io/blog/computer/2021/05/07/data-representation-and-external-sorting-study-note.html">&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;#data-representation&quot;&gt;Data Representation&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#external-sorting&quot;&gt;External Sorting&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#basics&quot;&gt;Basics&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#2-way-merge-sort-requires-3-buffers&quot;&gt;2-Way Merge-sort (Requires 3 Buffers)&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#if-we-have-more-main-memory&quot;&gt;If we have more main memory…&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#example&quot;&gt;Example:&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#external-merge-sort&quot;&gt;External Merge-Sort&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#pass-0-sorting&quot;&gt;Pass 0 (Sorting)&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#pass-1k-merging&quot;&gt;Pass 1/k (Merging)&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#cost-of-external-merge-sort&quot;&gt;Cost of External Merge Sort&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#example-1&quot;&gt;Example&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;data-representation&quot;&gt;Data Representation&lt;/h2&gt;
+
+&lt;p&gt;Relational database elements:&lt;/p&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Product&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;pid&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;INT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;PRIMARY&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;KEY&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;-- Base address (B)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;description&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;VARHCAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;100&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;maker&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;REFERENCES&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Company&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;A tuple/row is stored as a “record”&lt;/li&gt;
+  &lt;li&gt;The storing is similar to how computer stores blocks. We have a header for storing the metadata information, and blocks are stored sequentially after the header. The header includes pointers to blocks of records, length of records, and the timestamps that records the last modified or read time.&lt;/li&gt;
+  &lt;li&gt;However, differently, the header (offset table) and blocks are stored from both left and right because it’s easier to add a new block and its metadata information into the free space in the middle.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-1&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'storing-records-in-blocks'});&quot; href=&quot;/blog/assets/figures/storing-records-in-blocks.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/storing-records-in-blocks.png&quot; alt=&quot;Storing Records in Blocks&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 1: Storing Records in Blocks [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'storing-records-in-blocks'});&quot; href=&quot;/blog/assets/figures/storing-records-in-blocks.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h2 id=&quot;external-sorting&quot;&gt;External Sorting&lt;/h2&gt;
+
+&lt;p&gt;Problem: Sort large amount of data with little memory.&lt;/p&gt;
+
+&lt;h3 id=&quot;basics&quot;&gt;Basics&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;A block on storage devices loaded into a &lt;em&gt;page&lt;/em&gt; in main memory
+    &lt;ul&gt;
+      &lt;li&gt;We sometimes interchange page with block&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;em&gt;Buffer pages&lt;/em&gt;
+    &lt;ul&gt;
+      &lt;li&gt;Often refer to pages in main memory used to store input, output, and intermediate data for an algorithm&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Run: a sorted sublist of input data&lt;/li&gt;
+  &lt;li&gt;Make a pass through data:
+    &lt;ul&gt;
+      &lt;li&gt;Loading the entire data from disk once&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;2-way-merge-sort-requires-3-buffers&quot;&gt;2-Way Merge-sort (Requires 3 Buffers)&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Pass 0: Read a page, sort it, write it
+    &lt;ul&gt;
+      &lt;li&gt;only one input buffer page is used&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Pass 1, 2, …, etc.: merging two runs at a time
+    &lt;ul&gt;
+      &lt;li&gt;two output buffer page is used&lt;/li&gt;
+      &lt;li&gt;in total, three buffer pages used.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-2&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': '2-way-merge-sort'});&quot; href=&quot;/blog/assets/figures/2-way-merge-sort.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/2-way-merge-sort.png&quot; alt=&quot;2-Way Merge-sort&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 2: 2-Way Merge-sort [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': '2-way-merge-sort'});&quot; href=&quot;/blog/assets/figures/2-way-merge-sort.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Each pass we read and write each page in file&lt;/li&gt;
+  &lt;li&gt;If there are $N$ pages in the file, it means that the number of passes are&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;$$\lceil \log_2{N} \rceil +1$$&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Total cost:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;$$2N(\lceil \log_2{N} \rceil +1)$$&lt;/p&gt;
+
+&lt;h3 id=&quot;if-we-have-more-main-memory&quot;&gt;If we have more main memory…&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;$M$: # of blocks (i.e., pages) in main memory&lt;/li&gt;
+  &lt;li&gt;$B(R)$: # of blocks of relation $R$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;example&quot;&gt;Example:&lt;/h4&gt;
+
+&lt;p&gt;$M=5, B(R)=108$&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Sorting: load 5 pages, sort them, write back as run: $ \lceil 108/5 \rceil = \lceil 21.6 \rceil = 21 \text{ runs}$
+    &lt;ul&gt;
+      &lt;li&gt;$21$ runs, $5$ pages/run ($21*5 = 105$ pages)&lt;/li&gt;
+      &lt;li&gt;$1$ run, $3$ pages/run&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Merging: $(M-1)$-way merging =&amp;gt; 4-way merging
+    &lt;ul&gt;
+      &lt;li&gt;take $4$ runs, $5$ pages/run ($20$-page run)&lt;/li&gt;
+      &lt;li&gt;how many runs?&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&quot;external-merge-sort&quot;&gt;External Merge-Sort&lt;/h3&gt;
+
+&lt;h4 id=&quot;pass-0-sorting&quot;&gt;Pass 0 (Sorting)&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Load $M$ blocks in memory and sort&lt;/li&gt;
+  &lt;li&gt;Result: $\lceil \frac{B(R)}{M} \rceil$ sorted sublists of size $M$&lt;/li&gt;
+  &lt;li&gt;Each sorted sublist is a run&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;pass-1k-merging&quot;&gt;Pass 1/k (Merging)&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Merge $M – 1$ runs into a new run&lt;/li&gt;
+  &lt;li&gt;Result: each run has now $M (M – 1)$ blocks &lt;strong&gt;if this pass can finish&lt;/strong&gt;.&lt;/li&gt;
+  &lt;li&gt;Result: usually, 1 pass of merging is not enough, so each run should have $M(M-1)^k$ blocks&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;cost-of-external-merge-sort&quot;&gt;Cost of External Merge Sort&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Number of passes: $1+\lceil \log_{M-1}{\lceil B(R)/M \rceil} \rceil$&lt;/li&gt;
+  &lt;li&gt;Cost: $2\cdot k\cdot B(R)$, where $k$ is number of passes including sorting.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;example-1&quot;&gt;Example&lt;/h4&gt;
+
+&lt;p&gt;Consider external-sorting a table R which contains 120 blocks of data, using 4 pages of memory buffer.&lt;/p&gt;
+
+&lt;p&gt;That is, $B(R) = 120$ and $M = 4$. Note: use all available memory for sorting and merging.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;For each pass (sorting and merging), state the number of runs and the size of runs
+generated by the pass.
+    &lt;ul&gt;
+      &lt;li&gt;Pass 0 (use all pages to sort): Generate 30 runs, the size of each run is 4 pages.&lt;/li&gt;
+      &lt;li&gt;Pass 1 (3-way merge): Generate 10 runs, the size of each run is 12 blocks.&lt;/li&gt;
+      &lt;li&gt;Pass 2 (3-way merge): Generate 4 runs (3 runs having 36 blocks and 1 run having 12 blocks)&lt;/li&gt;
+      &lt;li&gt;Pass 3 (3-way merge): Generate 2 runs (1 run having 108 blocks and 1 run having 12 blocks)&lt;/li&gt;
+      &lt;li&gt;Pass 4 (2-way merge): Generate 1 sorted run of 120 blocks&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;What is the total cost (measured by the number of block I/O’s) of this external-sorting?
+$\text{Total cost} = ( \text{# of passes} ) \times 2 \times ( \text{# of blocks} ) = 5 \times 2 \times 120 = 1200$&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Or…&lt;/p&gt;
+
+&lt;p&gt;$\text{Total cost} = (1+\lceil \log_3{\lceil 120/4 \rceil} \rceil) \times 2 \times 120 =1200$&lt;/p&gt;</content><author><name>Yuchen Zhang</name></author><category term="computer" /><category term="sql" /><category term="study-notes" /><category term="data-representation" /><category term="external-sorting" /><summary type="html">Data Representation External Sorting Basics 2-Way Merge-sort (Requires 3 Buffers) If we have more main memory… Example: External Merge-Sort Pass 0 (Sorting) Pass 1/k (Merging) Cost of External Merge Sort Example</summary></entry><entry><title type="html">ER Model Study Note</title><link href="https://anthonyive.github.io/blog/computer/2021/05/06/er-model-study-note.html" rel="alternate" type="text/html" title="ER Model Study Note" /><published>2021-05-06T21:48:45+00:00</published><updated>2021-05-06T21:48:45+00:00</updated><id>https://anthonyive.github.io/blog/computer/2021/05/06/er-model-study-note</id><content type="html" xml:base="https://anthonyive.github.io/blog/computer/2021/05/06/er-model-study-note.html">&lt;p&gt;&lt;img src=&quot;https://pbs.twimg.com/media/BoUn8iUIgAAq-CU.png&quot; alt=&quot;header comic&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;table-of-contents&quot;&gt;Table of Contents&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;#table-of-contents&quot;&gt;Table of Contents&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#er-model&quot;&gt;ER Model&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#basic-stuff&quot;&gt;Basic Stuff&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#entities-and-attributes&quot;&gt;Entities and Attributes&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#relationships&quot;&gt;Relationships&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#subclasses&quot;&gt;Subclasses&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#subclasses-in-er-diagrams&quot;&gt;Subclasses in ER Diagrams&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#constraints&quot;&gt;Constraints&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#modeling-constraints&quot;&gt;Modeling Constraints&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#why-constraints-are-important&quot;&gt;Why Constraints are Important?&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#keys-in-er-diagrams&quot;&gt;Keys in ER Diagrams&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#single-value-constraints-value-based-constraints&quot;&gt;Single Value Constraints (Value-based Constraints)&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#referential-integrity-constraint&quot;&gt;Referential Integrity Constraint&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#weak-entity-sets&quot;&gt;Weak Entity Sets&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#design-principles&quot;&gt;Design principles&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;er-model&quot;&gt;ER Model&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Gives us a language to specify
+    &lt;ul&gt;
+      &lt;li&gt;what information the db must hold&lt;/li&gt;
+      &lt;li&gt;what are the relationships among components of that information&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Proposed by Peter Chen in 1976&lt;/li&gt;
+  &lt;li&gt;What we will cover
+    &lt;ul&gt;
+      &lt;li&gt;basic stuff&lt;/li&gt;
+      &lt;li&gt;subclasses&lt;/li&gt;
+      &lt;li&gt;constraints&lt;/li&gt;
+      &lt;li&gt;weak entity sets&lt;/li&gt;
+      &lt;li&gt;design principles&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;basic-stuff&quot;&gt;Basic Stuff&lt;/h3&gt;
+
+&lt;h4 id=&quot;entities-and-attributes&quot;&gt;Entities and Attributes&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;em&gt;Entities&lt;/em&gt;
+    &lt;ul&gt;
+      &lt;li&gt;real-world objects distinguishable from other objects&lt;/li&gt;
+      &lt;li&gt;described using a set of attributes&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;em&gt;Attributes&lt;/em&gt;
+    &lt;ul&gt;
+      &lt;li&gt;each has an atomic domain: string, integers, reals, etc.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;em&gt;Entity set&lt;/em&gt;: a collection of similar entities&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;relationships&quot;&gt;Relationships&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Modeled as a mathematical set&lt;/li&gt;
+  &lt;li&gt;Binary and multiway relationships&lt;/li&gt;
+  &lt;li&gt;Converting a multiway one into many binary ones&lt;/li&gt;
+  &lt;li&gt;Constraints on the degree of the relationship
+    &lt;ul&gt;
+      &lt;li&gt;many-one, one-one, many-many&lt;/li&gt;
+      &lt;li&gt;limitations of arrows&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Attributes of relationships
+    &lt;ul&gt;
+      &lt;li&gt;not necessary, but useful&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;subclasses&quot;&gt;Subclasses&lt;/h3&gt;
+
+&lt;h4 id=&quot;subclasses-in-er-diagrams&quot;&gt;Subclasses in ER Diagrams&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Assume subclasses form a tree.
+    &lt;ul&gt;
+      &lt;li&gt;I.e., no multiple inheritance.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Isa triangles indicate the subclass relationship.
+    &lt;ul&gt;
+      &lt;li&gt;Point to the superclass.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;constraints&quot;&gt;Constraints&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;A constraint = an assertion about the data in the database that must be true at all times&lt;/li&gt;
+  &lt;li&gt;Part of the database schema&lt;/li&gt;
+  &lt;li&gt;Very important in database design
+    &lt;ul&gt;
+      &lt;li&gt;To ensure data integrity&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;modeling-constraints&quot;&gt;Modeling Constraints&lt;/h4&gt;
+
+&lt;p&gt;Finding constraints is part of the modeling process.&lt;/p&gt;
+
+&lt;p&gt;Commonly used constraints:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Keys&lt;/strong&gt;: social security number uniquely identifies a person.
+&lt;strong&gt;Single-value constraints&lt;/strong&gt;: a person can have only one spouse.
+&lt;strong&gt;Referential integrity constraints&lt;/strong&gt;: if you work for a company, it must exist in the database.
+&lt;strong&gt;Domain constraints&lt;/strong&gt;: peoples’ ages are between 0 and 150.
+&lt;strong&gt;General constraints&lt;/strong&gt;: all others (e.g., at most 50 students can enroll in a class)&lt;/p&gt;
+
+&lt;h4 id=&quot;why-constraints-are-important&quot;&gt;Why Constraints are Important?&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Give more semantics to the data
+    &lt;ul&gt;
+      &lt;li&gt;help us better understand it&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Allow us to refer to entities (e.g., using keys)&lt;/li&gt;
+  &lt;li&gt;Enable efficient storage
+    &lt;ul&gt;
+      &lt;li&gt;E.g., store ages as tiny integer (1 byte for example)&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Enable efficient lookup
+    &lt;ul&gt;
+      &lt;li&gt;E.g., creating an index on key&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;keys-in-er-diagrams&quot;&gt;Keys in ER Diagrams&lt;/h4&gt;
+
+&lt;figure id=&quot;figure-1&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'keys-in-er-diagrams'});&quot; href=&quot;/blog/assets/figures/keys-in-er-diagrams.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/keys-in-er-diagrams.png&quot; alt=&quot;Keys in ER Diagrams&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 1: Keys in ER Diagrams [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'keys-in-er-diagrams'});&quot; href=&quot;/blog/assets/figures/keys-in-er-diagrams.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Every entity set must have a key
+    &lt;ul&gt;
+      &lt;li&gt;Why? Because entities of an entity set need “help” to identify them uniquely.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;A key can consist of more than one attribute&lt;/li&gt;
+  &lt;li&gt;There can be more than one key for an entity set
+    &lt;ul&gt;
+      &lt;li&gt;one key will be designated as primary key&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Requirement for key in an isa hierarchy
+    &lt;ul&gt;
+      &lt;li&gt;Root entity set has all attributes needed for a key&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-2&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'subclasses-in-er-diagrams'});&quot; href=&quot;/blog/assets/figures/subclasses-in-er-diagrams.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/subclasses-in-er-diagrams.png&quot; alt=&quot;Subclasses in ER Diagrams&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 2: Subclasses in ER Diagrams [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'subclasses-in-er-diagrams'});&quot; href=&quot;/blog/assets/figures/subclasses-in-er-diagrams.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h4 id=&quot;single-value-constraints-value-based-constraints&quot;&gt;Single Value Constraints (Value-based Constraints)&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;An entity has at most one value for a given attribute or relationship&lt;/li&gt;
+  &lt;li&gt;An attribute of an entity set has a single value or NULL
+    &lt;ul&gt;
+      &lt;li&gt;i.e., the value may be missing&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;A many-one relationship also implies a single value constraint&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;referential-integrity-constraint&quot;&gt;Referential Integrity Constraint&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;em&gt;Referential Integrity constraint&lt;/em&gt;: exactly one value exists in a given role&lt;/li&gt;
+  &lt;li&gt;An attribute has a non-null, single value
+    &lt;ul&gt;
+      &lt;li&gt;this can be considered a kind of ref. int. constraint&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;However, we more commonly use such constraints to refer to relationships&lt;/li&gt;
+  &lt;li&gt;In some formalisms we may refer to other object but get garbage instead
+    &lt;ul&gt;
+      &lt;li&gt;e.g. a dangling pointer in C/C++&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;The Referential Integrity Constraint on relationships explicitly requires a reference to exist&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-3&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'referential-integrity-constraints'});&quot; href=&quot;/blog/assets/figures/referential-integrity-constraints.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/referential-integrity-constraints.png&quot; alt=&quot;Referential Integrity Constraint Example&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 3: Referential Integrity Constraint Example [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'referential-integrity-constraints'});&quot; href=&quot;/blog/assets/figures/referential-integrity-constraints.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h3 id=&quot;weak-entity-sets&quot;&gt;Weak Entity Sets&lt;/h3&gt;
+
+&lt;p&gt;Entity sets are &lt;em&gt;weak&lt;/em&gt; when (some or all of) their key attributes come from other entity sets to which they are related.&lt;/p&gt;
+
+&lt;p&gt;This happens when:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;part-of relationships&lt;/li&gt;
+  &lt;li&gt;splitting n-ary relationships to binary.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-4&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'weak-entity-sets'});&quot; href=&quot;/blog/assets/figures/weak-entity-sets.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/weak-entity-sets.png&quot; alt=&quot;Weak Entity Sets Example&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 4: Weak Entity Sets Example [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'weak-entity-sets'});&quot; href=&quot;/blog/assets/figures/weak-entity-sets.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h3 id=&quot;design-principles&quot;&gt;Design principles&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;be faithful&lt;/li&gt;
+  &lt;li&gt;avoid redundancy&lt;/li&gt;
+  &lt;li&gt;KISS&lt;/li&gt;
+&lt;/ul&gt;</content><author><name>Yuchen Zhang</name></author><category term="computer" /><category term="study-notes" /><category term="er-model" /><summary type="html"></summary></entry><entry><title type="html">Constraints and Views Study Note</title><link href="https://anthonyive.github.io/blog/computer/2021/05/06/constraints-and-views-study-note.html" rel="alternate" type="text/html" title="Constraints and Views Study Note" /><published>2021-05-06T00:00:00+00:00</published><updated>2021-05-06T00:00:00+00:00</updated><id>https://anthonyive.github.io/blog/computer/2021/05/06/constraints-and-views-study-note</id><content type="html" xml:base="https://anthonyive.github.io/blog/computer/2021/05/06/constraints-and-views-study-note.html">&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;#constraints&quot;&gt;Constraints&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#kinds-of-constraints&quot;&gt;Kinds of Constraints&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#keys&quot;&gt;Keys&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#primary-key-vs-unique&quot;&gt;Primary Key vs Unique&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#foreign-keys&quot;&gt;Foreign Keys&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#express-foreign-key-with-attribute&quot;&gt;Express Foreign Key with Attribute&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#express-foreign-key-as-element&quot;&gt;Express Foreign Key as Element&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#express-foreign-key-with-unique-attributes&quot;&gt;Express Foreign Key with Unique Attributes&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#enforcing-foreign-key-constraints&quot;&gt;Enforcing Foreign Key Constraints&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#dealing-with-enforcing-foreign-key-constraints&quot;&gt;Dealing with Enforcing Foreign Key Constraints&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#value-based-constraints&quot;&gt;Value-based constraints&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#attribute-based-checks&quot;&gt;Attribute-Based Checks&lt;/a&gt;
+            &lt;ul&gt;
+              &lt;li&gt;&lt;a href=&quot;#timing-of-attribute-based-checks&quot;&gt;Timing of Attribute-Based Checks&lt;/a&gt;&lt;/li&gt;
+            &lt;/ul&gt;
+          &lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#tuple-based-checks&quot;&gt;Tuple-based Checks&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#assertions-not-supported-in-mysql&quot;&gt;Assertions (Not Supported in MySQL)&lt;/a&gt;
+            &lt;ul&gt;
+              &lt;li&gt;&lt;a href=&quot;#timing-of-assertion-checks&quot;&gt;Timing of Assertion Checks&lt;/a&gt;&lt;/li&gt;
+            &lt;/ul&gt;
+          &lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#views&quot;&gt;Views&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#what-happens-when-a-view-is-used&quot;&gt;What Happens When a View Is Used?&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#dmbs-optimization&quot;&gt;DMBS Optimization&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#types-of-views&quot;&gt;Types of Views&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;constraints&quot;&gt;Constraints&lt;/h2&gt;
+
+&lt;h3 id=&quot;kinds-of-constraints&quot;&gt;Kinds of Constraints&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Keys&lt;/li&gt;
+  &lt;li&gt;Foreign-key, or referential-integrity&lt;/li&gt;
+  &lt;li&gt;Value-based constraints
+    &lt;ul&gt;
+      &lt;li&gt;Constrain values of a particular attribute&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Tuple-based constraints
+    &lt;ul&gt;
+      &lt;li&gt;Constrain relationship among attributes&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Assertions: any SQL boolean expression
+    &lt;ul&gt;
+      &lt;li&gt;Very expressive&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;keys&quot;&gt;Keys&lt;/h3&gt;
+
+&lt;p&gt;Specified using “primary key” or “unique”:&lt;/p&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Sells&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;VARCHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;100&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;REFERENCES&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Bars&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;beer&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;VARCHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;100&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;REFERENCES&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Beers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;price&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;REAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;PRIMARY&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;KEY&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;beer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;primary-key-vs-unique&quot;&gt;Primary Key vs Unique&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Referenced attributes must be declared as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PRIMARY KEY&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;UNIQUE&lt;/code&gt;.
+    &lt;ul&gt;
+      &lt;li&gt;Otherwise, MySQL does not allow creation of the table&lt;/li&gt;
+      &lt;li&gt;Note that primary key can not be null, but unique attribute can&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Null values can be inserted into attribute of foreign key
+    &lt;ul&gt;
+      &lt;li&gt;Even though it refers to primary key in referenced table&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;foreign-keys&quot;&gt;Foreign Keys&lt;/h3&gt;
+
+&lt;p&gt;Use the keyword &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;REFERENCES&lt;/code&gt;, either:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Within the declaration of an attribute, when only
+one attribute is involved, or&lt;/li&gt;
+  &lt;li&gt;As an element of the schema, as:
+FOREIGN KEY ( &amp;lt;list of attributes&amp;gt; ) REFERENCES &amp;lt;relation&amp;gt; ( &amp;lt;attributes&amp;gt; )&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Note MySQL seems to enforce Foreign Key only when defined as an element&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;express-foreign-key-with-attribute&quot;&gt;Express Foreign Key with Attribute&lt;/h4&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Beers&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;PRIMARY&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;KEY&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;manf&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Sells&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;beer&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;REFERENCES&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Beers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; 
+    &lt;span class=&quot;n&quot;&gt;price&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;REAL&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;express-foreign-key-as-element&quot;&gt;Express Foreign Key as Element&lt;/h4&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Beers&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;PRIMARY&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;KEY&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;manf&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Sells&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;beer&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;price&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;REAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;FOREIGN&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;KEY&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;beer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;REFERENCES&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BEERS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;-- here name must be primary key&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;express-foreign-key-with-unique-attributes&quot;&gt;Express Foreign Key with Unique Attributes&lt;/h4&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;INT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;PRIMARY&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;KEY&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;INSERT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;INTO&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;VALUES&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;+---+
+| a |
++---+
+| 1 |
++---+
+1 row in set (0.00 sec)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;INT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FOREIGN&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;KEY&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;REFERENCES&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;INSERT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;INTO&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;VALUES&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;    &lt;span class=&quot;c1&quot;&gt;-- this works because &quot;a&quot; in R has number 1&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;INSERT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;INTO&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;VALUES&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;-- this also works even though &quot;a&quot; is primary key in R&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;INSERT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;INTO&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;VALUES&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;    &lt;span class=&quot;c1&quot;&gt;-- this doesn't work because &quot;a&quot; in R doesn't have number 2&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;+------+
+| b    |
++------+
+| NULL |
+|    1 |
++------+
+2 rows in set (0.00 sec)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;enforcing-foreign-key-constraints&quot;&gt;Enforcing Foreign Key Constraints&lt;/h4&gt;
+
+&lt;p&gt;If there is a foreign-key constraint from attributes of relation S to the primary key (or unique attribute) of relation R, two violations are possible:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;An insert or update to S introduces values not found in R.&lt;/li&gt;
+  &lt;li&gt;A deletion or update to R causes some tuples of S to “dangle.”&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;dealing-with-enforcing-foreign-key-constraints&quot;&gt;Dealing with Enforcing Foreign Key Constraints&lt;/h4&gt;
+
+&lt;p&gt;Example: Suppose R = Beers, S = Sells.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;An insert or update to Sells that introduces a nonexistent beer must be rejected.&lt;/li&gt;
+  &lt;li&gt;A deletion or update to Beers that removes a beer value found in some tuples of Sells can be handled in three ways.
+    &lt;ol&gt;
+      &lt;li&gt;&lt;em&gt;Default&lt;/em&gt;: Reject the modification&lt;/li&gt;
+      &lt;li&gt;&lt;em&gt;Cascade&lt;/em&gt;: Make the same changes in Sells.
+        &lt;ul&gt;
+          &lt;li&gt;Deleted beer: delete Sells tuple.&lt;/li&gt;
+          &lt;li&gt;Updated beer: change value in Sells.&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;em&gt;Set NULL&lt;/em&gt;: Change the beers in Sells to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NULL&lt;/code&gt;.&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Sells&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;beer&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;price&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;REAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;FOREIGN&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;KEY&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;beer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;REFERENCES&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Beers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;ON&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;DELETE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;SET&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;NULL&lt;/span&gt;   &lt;span class=&quot;c1&quot;&gt;-- set on delete separately with its type&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;ON&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;UPDATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;CASCADE&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;-- set on update separately with its type&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;value-based-constraints&quot;&gt;Value-based constraints&lt;/h3&gt;
+
+&lt;h4 id=&quot;attribute-based-checks&quot;&gt;Attribute-Based Checks&lt;/h4&gt;
+
+&lt;p&gt;Make sure every insertion of age is smaller than 100:&lt;/p&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;student&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;age&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;TINYINT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;CHECK&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;age&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;100&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Make sure every insertion of beer is in the names of Beers table and price is smaller than or equal to 5.00.&lt;/p&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Sells&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;beer&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;CHECK&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;beer&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;IN&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Beers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)),&lt;/span&gt;
+        &lt;span class=&quot;c1&quot;&gt;-- Does not checked if a beer is deleted &lt;/span&gt;
+        &lt;span class=&quot;c1&quot;&gt;-- from Beers (unlike foreign-keys).&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;price&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;REAL&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;CHECK&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;price&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;00&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h5 id=&quot;timing-of-attribute-based-checks&quot;&gt;Timing of Attribute-Based Checks&lt;/h5&gt;
+
+&lt;p&gt;An attribute-based check is checked only when a value for that attribute is inserted or updated.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Example: CHECK (price &amp;lt;= 5.00) checks every new price and rejects it if it is more than $5.&lt;/li&gt;
+  &lt;li&gt;Example: CHECK (beer IN (SELECT name FROM Beers)) not checked if a beer is deleted from Beers (unlike foreign-keys).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;tuple-based-checks&quot;&gt;Tuple-based Checks&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;CHECK ( &amp;lt;condition&amp;gt; ) may be added as another element of a schema definition.&lt;/li&gt;
+  &lt;li&gt;The condition may refer to any attribute of the relation, but any other attributes or relations require a subquery.&lt;/li&gt;
+  &lt;li&gt;Checked on insert or update only.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Example: If we want only Joe’s Bar can sell beer for more than $5.&lt;/p&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Sells&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;beer&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;CHAR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;price&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;REAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;CHECK&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'Joe'&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;OR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;price&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;00&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;assertions-not-supported-in-mysql&quot;&gt;Assertions (Not Supported in MySQL)&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;These are database-schema elements, like relations or views.&lt;/li&gt;
+  &lt;li&gt;Defined by:&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CREATE ASSERTION &amp;lt;name&amp;gt; CHECK ( &amp;lt;condition&amp;gt; );&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Condition may refer to any relation or attribute in the database schema.&lt;/li&gt;
+  &lt;li&gt;Very expensive to enforce
+    &lt;ul&gt;
+      &lt;li&gt;Neither PostgreSQL nor MySQL supports this&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Example: In Sells(bar, beer, price), bars cannot charge an average of more than $5.&lt;/p&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;ASSERTION&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NoRipoffBars&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;CHECK&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;NOT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;EXISTS&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Sells&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;GROUP&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;BY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;HAVING&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;00&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;AVG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;price&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Example: In Drinkers(name, addr, phone) and Bars(name, addr, license), there cannot be more bars than drinkers.&lt;/p&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;ASSERTION&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FewBar&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;CHECK&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;COUNT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Bars&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;COUNT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Drinkers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h5 id=&quot;timing-of-assertion-checks&quot;&gt;Timing of Assertion Checks&lt;/h5&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;In principle, we must check every assertion after every modification to any relation of the database.&lt;/li&gt;
+  &lt;li&gt;A clever system can observe that only certain changes could cause a given assertion to be violated.
+    &lt;ul&gt;
+      &lt;li&gt;Example: No change to Beers can affect FewBar. Neither can an insertion to Drinkers.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;views&quot;&gt;Views&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;A view is a “virtual table,” a relation that is defined in terms of the contents of other tables and views.&lt;/li&gt;
+  &lt;li&gt;Declare by: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CREATE VIEW &amp;lt;name&amp;gt; AS &amp;lt;query&amp;gt;;&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;In contrast, a relation whose value is really stored in the database is called a base table.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Example: CanDrink(drinker, beer) is a view “containing” the drinker-beer pairs such that the drinker frequents at least one bar that serves the beer.&lt;/p&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;CREATE&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;VIEW&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CanDrink&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;AS&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;distinct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;drinker&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;beer&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Frequents&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Sells&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;WHERE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Frequents&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Sells&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Example: Accessing a View&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;You may query a view as if it were a base table.
+    &lt;ul&gt;
+      &lt;li&gt;There is a limited ability to modify views if the modification makes sense as a modification of the underlying base table.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CanDrink&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;WHERE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;drinker&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'Bill'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;what-happens-when-a-view-is-used&quot;&gt;What Happens When a View Is Used?&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The DBMS starts by interpreting the query as if the view were a base table.
+    &lt;ul&gt;
+      &lt;li&gt;Typical DBMS turns the query into something like relational algebra.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;The queries defining any views used by the query are also replaced by their algebraic equivalents, and “spliced into” the expression tree for the query.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;dmbs-optimization&quot;&gt;DMBS Optimization&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;It is interesting to observe that the typical DBMS will then “optimize” the query by transforming the algebraic expression to one that can be executed faster.&lt;/li&gt;
+  &lt;li&gt;Key optimizations:
+    &lt;ol&gt;
+      &lt;li&gt;Push selections down the tree.&lt;/li&gt;
+      &lt;li&gt;Eliminate unnecessary projections.&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-1&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'view-optimization'});&quot; href=&quot;/blog/assets/figures/view-optimization.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/view-optimization.png&quot; alt=&quot;Optimization&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 1: Optimization [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'view-optimization'});&quot; href=&quot;/blog/assets/figures/view-optimization.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h3 id=&quot;types-of-views&quot;&gt;Types of Views&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Virtual views:
+    &lt;ul&gt;
+      &lt;li&gt;Computed only on-demand – slow at runtime&lt;/li&gt;
+      &lt;li&gt;Always up to date&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Materialized views
+    &lt;ul&gt;
+      &lt;li&gt;Precomputed offline – fast at runtime&lt;/li&gt;
+      &lt;li&gt;Common in data warehouses&lt;/li&gt;
+      &lt;li&gt;May have stale data&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;</content><author><name>Yuchen Zhang</name></author><category term="computer" /><category term="study-notes" /><category term="constraints" /><category term="views" /><summary type="html">Constraints Kinds of Constraints Keys Primary Key vs Unique Foreign Keys Express Foreign Key with Attribute Express Foreign Key as Element Express Foreign Key with Unique Attributes Enforcing Foreign Key Constraints Dealing with Enforcing Foreign Key Constraints Value-based constraints Attribute-Based Checks Timing of Attribute-Based Checks Tuple-based Checks Assertions (Not Supported in MySQL) Timing of Assertion Checks Views What Happens When a View Is Used? DMBS Optimization Types of Views</summary></entry><entry><title type="html">SQL Study Note</title><link href="https://anthonyive.github.io/blog/computer/2021/05/05/sql-study-note.html" rel="alternate" type="text/html" title="SQL Study Note" /><published>2021-05-05T00:00:00+00:00</published><updated>2021-05-05T00:00:00+00:00</updated><id>https://anthonyive.github.io/blog/computer/2021/05/05/sql-study-note</id><content type="html" xml:base="https://anthonyive.github.io/blog/computer/2021/05/05/sql-study-note.html">&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;#table-of-content&quot;&gt;Table of Content&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#relational-algebra&quot;&gt;Relational Algebra&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#basic-sql-clauses&quot;&gt;Basic SQL Clauses&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#more-sql-clauses&quot;&gt;More SQL Clauses&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#like&quot;&gt;LIKE&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#and-or-not&quot;&gt;AND, OR, NOT&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#multi-relation-queries-joins&quot;&gt;Multi-Relation Queries (Joins)&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#cartesian-product-join-or-inner-join-or-cross-join&quot;&gt;Cartesian product (JOIN or INNER JOIN or CROSS JOIN)&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#thetaequi-join-join--on--or-natural-join&quot;&gt;Theta/Equi Join (JOIN … ON … or NATURAL JOIN)&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#leftright-join&quot;&gt;LEFT/RIGHT JOIN&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#full-outer-join-in-mysql&quot;&gt;FULL OUTER JOIN in MySQL&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#relation-as-bags&quot;&gt;Relation as Bags&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#bag-semantics-for-select-from-where-queries&quot;&gt;&lt;em&gt;Bag Semantics&lt;/em&gt; for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SELECT-FROM-WHERE&lt;/code&gt; Queries&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#set-operations-on-bags-multisets&quot;&gt;Set Operations on &lt;em&gt;Bags&lt;/em&gt; (&lt;em&gt;multisets&lt;/em&gt;)&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#subqueries&quot;&gt;Subqueries&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#subquery-in-from&quot;&gt;Subquery in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;FROM&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#subquery-in-where&quot;&gt;Subquery in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;WHERE&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The data uses in this post can be downloaded &lt;a href=&quot;/blog/assets/attachments/beers-tables.sql&quot;&gt;as a SQL file&lt;/a&gt;. Also, the post is using MySQL.
+Quote from MySQL documentation, “In MySQL, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;JOIN&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CROSS JOIN&lt;/code&gt;, and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;INNER JOIN&lt;/code&gt; are syntactic equivalents (they can replace each other). In standard SQL, they are not equivalent. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;INNER JOIN&lt;/code&gt; is used with an &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ON&lt;/code&gt; clause, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CROSS JOIN&lt;/code&gt; is used otherwise.”&lt;/p&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;mysql&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;show&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tables&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;c1&quot;&gt;-------------------+&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Tables_in_dsci551&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;c1&quot;&gt;-------------------+&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Bars&lt;/span&gt;              &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Beers&lt;/span&gt;             &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Drinkers&lt;/span&gt;          &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Frequents&lt;/span&gt;         &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Likes&lt;/span&gt;             &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Sells&lt;/span&gt;             &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;c1&quot;&gt;-------------------+&lt;/span&gt;
+&lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;rows&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;00&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;table-of-content&quot;&gt;Table of Content&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;#table-of-content&quot;&gt;Table of Content&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#relational-algebra&quot;&gt;Relational Algebra&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#basic-sql-clauses&quot;&gt;Basic SQL Clauses&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#more-sql-clauses&quot;&gt;More SQL Clauses&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#like&quot;&gt;LIKE&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#and-or-not&quot;&gt;AND, OR, NOT&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#multi-relation-queries-joins&quot;&gt;Multi-Relation Queries (Joins)&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#cartesian-product-join-or-inner-join-or-cross-join&quot;&gt;Cartesian product (JOIN or INNER JOIN or CROSS JOIN)&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#thetaequi-join-join--on--or-natural-join&quot;&gt;Theta/Equi Join (JOIN … ON … or NATURAL JOIN)&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#leftright-join&quot;&gt;LEFT/RIGHT JOIN&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#full-outer-join-in-mysql&quot;&gt;FULL OUTER JOIN in MySQL&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#relation-as-bags&quot;&gt;Relation as Bags&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#bag-semantics-for-select-from-where-queries&quot;&gt;&lt;em&gt;Bag Semantics&lt;/em&gt; for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SELECT-FROM-WHERE&lt;/code&gt; Queries&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#set-operations-on-bags-multisets&quot;&gt;Set Operations on &lt;em&gt;Bags&lt;/em&gt; (&lt;em&gt;multisets&lt;/em&gt;)&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#subqueries&quot;&gt;Subqueries&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#subquery-in-from&quot;&gt;Subquery in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;FROM&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#subquery-in-where&quot;&gt;Subquery in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;WHERE&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;relational-algebra&quot;&gt;Relational Algebra&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Selection ($\sigma$)
+    &lt;ul&gt;
+      &lt;li&gt;$\sigma_{\text{GNP&amp;gt;1000}}(\text{country})$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Join ($\bowtie$)
+    &lt;ul&gt;
+      &lt;li&gt;$\text{country}\bowtie_{\text{country.Capital=city.ID}}\text{city}$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Projection ($\Pi$)
+    &lt;ul&gt;
+      &lt;li&gt;$\Pi_{\text{GNP}}(\text{country})$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Group by ($\gamma$)
+    &lt;ul&gt;
+      &lt;li&gt;$\gamma_{\text{Continent},\text{avg(LifeExpectancy)}\rightarrow\text{count(*)}&amp;gt;5}(\text{country})$&lt;/li&gt;
+      &lt;li&gt;Example:&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Continent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;avg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;LifeExpectancy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;avg_le&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;country&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;GROUP&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;BY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Continent&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;HAVING&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Distinct ($\delta$)
+    &lt;ul&gt;
+      &lt;li&gt;$\delta_{\text{Continent}, \text{Region}}(\text{country})$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;DISTINCT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Continent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Region&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;country&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Set/bag operations
+    &lt;ul&gt;
+      &lt;li&gt;union: $\cup$, $\cup_b$&lt;/li&gt;
+      &lt;li&gt;intersect: $\cap$, $\cap_b$&lt;/li&gt;
+      &lt;li&gt;except: $–, –_b$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;basic-sql-clauses&quot;&gt;Basic SQL Clauses&lt;/h2&gt;
+
+&lt;p&gt;I’ll skip these basic SQL clauses:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;SELECT&lt;/strong&gt; continent, max(GNP)&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;FROM&lt;/strong&gt; country&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;WHERE&lt;/strong&gt; population &amp;gt; 10000 …&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;GROUP&lt;/strong&gt; by continent&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;HAVING&lt;/strong&gt; count(*) &amp;gt; 5&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;ORDER BY&lt;/strong&gt; continent desc&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;LIMIT&lt;/strong&gt; 10&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;OFFSET&lt;/strong&gt; 10&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;more-sql-clauses&quot;&gt;More SQL Clauses&lt;/h2&gt;
+
+&lt;h3 id=&quot;like&quot;&gt;LIKE&lt;/h3&gt;
+
+&lt;p&gt;Pattern matching&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Uses with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;WHERE&lt;/code&gt; for doing &lt;em&gt;case-insensitive&lt;/em&gt; pattern matching, for example&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Sells&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;WHERE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;beer&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;LIKE&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'bud'&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Pattern is a quoted string with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;%&lt;/code&gt; = “any string”; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;_&lt;/code&gt; = “any character”. For example,&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Drinkers&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;WHERE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;phone&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;LIKE&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'%555-____'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;-- there are four underscores after the dash&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;will find the drinkers with exchange 555.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;It also can be used with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NOT&lt;/code&gt;, for example, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NOT LIKE&lt;/code&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;and-or-not&quot;&gt;AND, OR, NOT&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;To understand how &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;AND&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;OR&lt;/code&gt;, and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NOT&lt;/code&gt; work in 3-valued logic, think of TRUE = 1, FALSE = 0, and UNKNOWN = $\frac{1}{2}$.&lt;/li&gt;
+  &lt;li&gt;AND = MIN; OR = MAX, NOT$(x) = 1-x$&lt;/li&gt;
+  &lt;li&gt;Example:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;TRUE AND (FALSE OR NOT(UNKNOWN))
+= MIN(1, MAX(0, (1 - 1/2)))
+= MIN(1, MAX(0, 1/2))
+= MIN(1, 1/2)
+= 1/2
+= UNKNOWN
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Consequences: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NULL&lt;/code&gt; values may get excluded&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;multi-relation-queries-joins&quot;&gt;Multi-Relation Queries (Joins)&lt;/h2&gt;
+
+&lt;p&gt;Modified for MySQL from &lt;a href=&quot;https://stackoverflow.com/a/17946222/8815957&quot;&gt;this answer&lt;/a&gt; from Stack Overflow, there are in total joins in MySQL:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;JOIN&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;INNER JOIN&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CROSS JOIN&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;OUTER JOIN&lt;/code&gt;
+    &lt;ol&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LEFT OUTER JOIN&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LEFT JOIN&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;RIGHT OUTER JOIN&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;RIGHT JOIN&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;FULL OUTER JOIN&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;FULL JOIN&lt;/code&gt;&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NATURAL JOIN&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SELF JOIN&lt;/code&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Or, visually in Venn diagrams (note that MySQL is a little bit different from others)&lt;/p&gt;
+
+&lt;figure id=&quot;figure-1&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'sql-joins'});&quot; href=&quot;/blog/assets/figures/sql-joins.jpg&quot;&gt;&lt;img src=&quot;/blog/assets/figures/sql-joins.jpg&quot; alt=&quot;SQL Joins&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 1: SQL Joins [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'sql-joins'});&quot; href=&quot;/blog/assets/figures/sql-joins.jpg&quot;&gt;JPG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h3 id=&quot;cartesian-product-join-or-inner-join-or-cross-join&quot;&gt;Cartesian product (JOIN or INNER JOIN or CROSS JOIN)&lt;/h3&gt;
+
+&lt;p&gt;Simply select from two tables is equivalent to simply &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;JOIN&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CROSS JOIN&lt;/code&gt;, and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;INNER JOIN&lt;/code&gt;. Doing so will result a data frame with $M\times N$ row if M and N are the row counts for table 1 and 2 respectively.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Summary&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;select … from two tables&lt;/li&gt;
+  &lt;li&gt;join&lt;/li&gt;
+  &lt;li&gt;cross join&lt;/li&gt;
+  &lt;li&gt;inner join&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;-- Simply select from&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Frequents&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Likes&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;-- LIMIT 5;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;-- JOIN&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Frequents&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;JOIN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Likes&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;-- LIMIT 5;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;-- CROSS JOIN&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Frequents&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;CROSS&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;JOIN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Likes&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;-- LIMIT 5;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;-- INNER JOIN&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Frequents&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;INNER&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;JOIN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Likes&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;-- LIMIT 5;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;+----------+------------+---------+------+
+| drinker  | bar        | drinker | beer |
++----------+------------+---------+------+
+| Bill     | Mary's bar | Bill    | Bud  |
+| Steve    | Joe's bar  | Bill    | Bud  |
+| Jennifer | Joe's bar  | Bill    | Bud  |
+| David    | Joe's bar  | Bill    | Bud  |
+| Steve    | Bob's bar  | Bill    | Bud  |
++----------+------------+---------+------+
+5 rows in set (0.00 sec)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Note that if there’re no common columns, it will still do a cartesian product.&lt;/p&gt;
+
+&lt;h3 id=&quot;thetaequi-join-join--on--or-natural-join&quot;&gt;Theta/Equi Join (JOIN … ON … or NATURAL JOIN)&lt;/h3&gt;
+
+&lt;p&gt;As the name suggests, it will match two columns and leave equal columns after they joined.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Summary&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;select … from two tables and use where&lt;/li&gt;
+  &lt;li&gt;(cross/inner/) join … on …&lt;/li&gt;
+  &lt;li&gt;natural join will eliminate the duplicate column&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;-- Equi Join using where&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Frequents&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Likes&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;WHERE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Frequents&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;drinker&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Likes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;drinker&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;-- Equi Join using joins&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Frequents&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;JOIN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Likes&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;-- or CROSS JOIN or INNER JOIN&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;ON&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Frequents&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;drinker&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Likes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;drinker&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;+----------+------------+----------+------------+
+| drinker  | bar        | drinker  | beer       |
++----------+------------+----------+------------+
+| Steve    | Bob's bar  | Steve    | Bud        |
+| Steve    | Bob's bar  | Steve    | Bud Lite   |
+| Steve    | Bob's bar  | Steve    | Michelob   |
+| Steve    | Bob's bar  | Steve    | Summerbrew |
+| Jennifer | Joe's bar  | Jennifer | Bud        |
+| Steve    | Joe's bar  | Steve    | Bud        |
+| Steve    | Joe's bar  | Steve    | Bud Lite   |
+| Steve    | Joe's bar  | Steve    | Michelob   |
+| Steve    | Joe's bar  | Steve    | Summerbrew |
+| Bill     | Mary's bar | Bill     | Bud        |
++----------+------------+----------+------------+
+10 rows in set (0.00 sec)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Note that two drinker columns are exactly the same.&lt;/p&gt;
+
+&lt;p&gt;In addition to these join queries, there’s also a clause called &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NATURAL JOIN&lt;/code&gt;. It’s the same with them, but it will only keep one column if they are the same.&lt;/p&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;-- Equi Join using natural join&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Frequents&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;NATURAL&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;JOIN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Likes&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;ON&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Frequents&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;drinker&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Likes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;drinker&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;-- when using natural join, ON clause can be ignored&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;+----------+------------+------------+
+| drinker  | bar        | beer       |
++----------+------------+------------+
+| Steve    | Bob's bar  | Bud        |
+| Steve    | Bob's bar  | Bud Lite   |
+| Steve    | Bob's bar  | Michelob   |
+| Steve    | Bob's bar  | Summerbrew |
+| Jennifer | Joe's bar  | Bud        |
+| Steve    | Joe's bar  | Bud        |
+| Steve    | Joe's bar  | Bud Lite   |
+| Steve    | Joe's bar  | Michelob   |
+| Steve    | Joe's bar  | Summerbrew |
+| Bill     | Mary's bar | Bud        |
++----------+------------+------------+
+10 rows in set (0.00 sec)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Note that there is only one drinker column.&lt;/p&gt;
+
+&lt;h3 id=&quot;leftright-join&quot;&gt;LEFT/RIGHT JOIN&lt;/h3&gt;
+
+&lt;p&gt;I’ll skip this part since it’s very easy to see on a Venn diagram. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LEFT JOIN&lt;/code&gt; will keep all the rows of the left table.&lt;/p&gt;
+
+&lt;h3 id=&quot;full-outer-join-in-mysql&quot;&gt;FULL OUTER JOIN in MySQL&lt;/h3&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;LEFT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;JOIN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;-- be careful that NATURAL LEFT JOIN without ON clause may contain duplicates&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;ON&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;S&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;UNION&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;RIGHT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;JOIN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;ON&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;S&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Or with natural join…&lt;/p&gt;
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;c&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;NATURAL&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;LEFT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;JOIN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;UNION&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;c&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;NATURAL&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;RIGHT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;JOIN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;relation-as-bags&quot;&gt;Relation as Bags&lt;/h2&gt;
+
+&lt;h3 id=&quot;bag-semantics-for-select-from-where-queries&quot;&gt;&lt;em&gt;Bag Semantics&lt;/em&gt; for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SELECT-FROM-WHERE&lt;/code&gt; Queries&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;em&gt;Bag Semantics&lt;/em&gt; vs &lt;em&gt;Set Semantics&lt;/em&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;em&gt;Set semantics&lt;/em&gt; remove the duplicates while &lt;em&gt;bag semantics&lt;/em&gt; keep duplicates&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;The SELECT-FROM-WHERE statement uses &lt;em&gt;bag&lt;/em&gt; or &lt;em&gt;multisets semantics&lt;/em&gt;, meaning that they keep duplicates
+    &lt;ul&gt;
+      &lt;li&gt;Selection ($\sigma$)&lt;/li&gt;
+      &lt;li&gt;Projection ($\Pi$)&lt;/li&gt;
+      &lt;li&gt;Cartesian product, join ($\bowtie$)&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;In the ordinary relational model, relations are sets of tuples, which by definition do not contain “duplicate” entries. However, RDBMSs typically implement a variation of this model where relations are &lt;em&gt;bags&lt;/em&gt; (or &lt;em&gt;multisets&lt;/em&gt;) of tuples, with duplicates allowed.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;set-operations-on-bags-multisets&quot;&gt;Set Operations on &lt;em&gt;Bags&lt;/em&gt; (&lt;em&gt;multisets&lt;/em&gt;)&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Union
+    &lt;ul&gt;
+      &lt;li&gt;SQL: ( subquery ) UNION ( subquery )&lt;/li&gt;
+      &lt;li&gt;Add together and remove duplicates&lt;/li&gt;
+      &lt;li&gt;Ex: $\{a,b,b,c\} \cup \{a,b,b,b,e,f,f\} = \{a,b,c,e,f\}$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Difference (Not in MySQL)
+    &lt;ul&gt;
+      &lt;li&gt;SQL: ( subquery ) DIFFERENCE ( subquery )&lt;/li&gt;
+      &lt;li&gt;Subtract the number of occurrences, do nothing if there’s not enough to be subtracted and remove duplicates&lt;/li&gt;
+      &lt;li&gt;Ex: $\{a,b,b,b,c,c\} - \{b,c,c,c,d\} = \{a,b\}$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Intersection (Not in MySQL)
+    &lt;ul&gt;
+      &lt;li&gt;SQL: ( subquery ) INTERSECT ( subquery )&lt;/li&gt;
+      &lt;li&gt;Minimum of the two numbers of occurrences&lt;/li&gt;
+      &lt;li&gt;$\{a,b,b,b,c,c\} \cap \{b,b,c,c,c,c,d\} = \{b,b,c,c\}$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Union All
+    &lt;ul&gt;
+      &lt;li&gt;SQL: ( subquery ) UNION ALL ( subquery )&lt;/li&gt;
+      &lt;li&gt;Simply add together&lt;/li&gt;
+      &lt;li&gt;Ex: $\{a,b,b,c\} \cup \{a,b,b,b,e,f,f\} = \{a,a,b,b,b,b,b,c,e,f,f\}$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Except (Not in MySQL)
+    &lt;ul&gt;
+      &lt;li&gt;SQL: ( subquery ) EXCEPT ( subquery )&lt;/li&gt;
+      &lt;li&gt;Subtract the number of occurrences, do nothing if there’s not enough to be subtracted&lt;/li&gt;
+      &lt;li&gt;Ex: $\{a,b,b,b,c,c\} - \{b,c,c,c,d\} = \{a,b,b\}$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;subqueries&quot;&gt;Subqueries&lt;/h2&gt;
+
+&lt;h3 id=&quot;subquery-in-from&quot;&gt;Subquery in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;FROM&lt;/code&gt;&lt;/h3&gt;
+
+&lt;p&gt;A parenthesized SELECT-FROM-WHERE statement (subquery) can be used in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;FROM&lt;/code&gt; clause&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Example:
+    &lt;ul&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SELECT * FROM (SELECT * FROM Beers) as b&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;Note tuple variable needed to name the relation generated by the subquery&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;subquery-in-where&quot;&gt;Subquery in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;WHERE&lt;/code&gt;&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Introduced by &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;=&lt;/code&gt; (or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;!=&lt;/code&gt;)
+    &lt;ul&gt;
+      &lt;li&gt;x &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;=&lt;/code&gt; (subquery)&lt;/li&gt;
+      &lt;li&gt;x can be an attribute or a tuple of attributes&lt;/li&gt;
+      &lt;li&gt;Subquery needs to return &lt;strong&gt;exactly one&lt;/strong&gt; result (row)&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Introduced by &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;IN&lt;/code&gt; (or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NOT IN&lt;/code&gt;)
+    &lt;ul&gt;
+      &lt;li&gt;x &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;IN&lt;/code&gt; (subquery)&lt;/li&gt;
+      &lt;li&gt;Subquery may return &lt;strong&gt;multiple&lt;/strong&gt; results (rows)&lt;/li&gt;
+      &lt;li&gt;Equivalences
+        &lt;ul&gt;
+          &lt;li&gt;x &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;=&lt;/code&gt; any(subquery) $\iff$ x &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;IN&lt;/code&gt; (subquery)&lt;/li&gt;
+          &lt;li&gt;x &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;!=&lt;/code&gt; all(subquery) $\iff$ x &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NOT IN&lt;/code&gt; (subquery)&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Introduced by comparison operators
+    &lt;ul&gt;
+      &lt;li&gt;&amp;lt;comparison operator&amp;gt; &amp;lt;any/all&amp;gt; (subquery)
+        &lt;ul&gt;
+          &lt;li&gt;Comparison operators: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;=&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;!=&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;lt;&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;gt;&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;lt;=&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;gt;=&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;lt;&amp;gt;&lt;/code&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;Examples
+        &lt;ul&gt;
+          &lt;li&gt;x &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;gt;=&lt;/code&gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ALL&lt;/code&gt; (subquery)&lt;/li&gt;
+          &lt;li&gt;x &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;lt;=&lt;/code&gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ALL&lt;/code&gt; (subquery)&lt;/li&gt;
+          &lt;li&gt;x &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;=&lt;/code&gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ANY&lt;/code&gt; (subquery) // equivalent to “x &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;IN&lt;/code&gt; (subquery)”&lt;/li&gt;
+          &lt;li&gt;x &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;!=&lt;/code&gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ALL&lt;/code&gt; (subquery) // equivalent to “x &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NOT in&lt;/code&gt; (subquery)”&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;-- select the max price from Sells&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;beer&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Sells&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;WHERE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;price&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;ALL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;SELECT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;price&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Sells&lt;/span&gt; 
+                    &lt;span class=&quot;k&quot;&gt;WHERE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;price&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;IS&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;NOT&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;NULL&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;-- must exclude NULL values&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Introduced by &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;EXISTS&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NOT EXISTS&lt;/code&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;EXISTS&lt;/code&gt; (subquery)
+        &lt;ul&gt;
+          &lt;li&gt;Evaluated to true if subquery has at least one result&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NOT EXISTS&lt;/code&gt; (subquery)
+        &lt;ul&gt;
+          &lt;li&gt;Evaluated to true if subquery has no results&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;-- select rows where manf only has one beer&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Beers&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b1&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;exists&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Beers&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b2&lt;/span&gt; 
+                  &lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;manf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;manf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;</content><author><name>Yuchen Zhang</name></author><category term="computer" /><category term="study-notes" /><category term="sql" /><summary type="html">Table of Content Relational Algebra Basic SQL Clauses More SQL Clauses LIKE AND, OR, NOT Multi-Relation Queries (Joins) Cartesian product (JOIN or INNER JOIN or CROSS JOIN) Theta/Equi Join (JOIN … ON … or NATURAL JOIN) LEFT/RIGHT JOIN FULL OUTER JOIN in MySQL Relation as Bags Bag Semantics for SELECT-FROM-WHERE Queries Set Operations on Bags (multisets) Subqueries Subquery in FROM Subquery in WHERE</summary></entry><entry><title type="html">DSCI 550 Assignment 3 (Project Final Visualization)</title><link href="https://anthonyive.github.io/blog/project/2021/05/04/dsci-550-assignment-3.html" rel="alternate" type="text/html" title="DSCI 550 Assignment 3 (Project Final Visualization)" /><published>2021-05-04T00:00:00+00:00</published><updated>2021-05-04T00:00:00+00:00</updated><id>https://anthonyive.github.io/blog/project/2021/05/04/dsci-550-assignment-3</id><content type="html" xml:base="https://anthonyive.github.io/blog/project/2021/05/04/dsci-550-assignment-3.html">&lt;figure id=&quot;figure-1&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'fradulent-emails-d3-home'});&quot; href=&quot;/blog/assets/figures/fradulent-emails-d3-home.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/fradulent-emails-d3-home.png&quot; alt=&quot;Home Page&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 1: Home Page [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'fradulent-emails-d3-home'});&quot; href=&quot;/blog/assets/figures/fradulent-emails-d3-home.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;#assignment-3-project-report&quot;&gt;Assignment 3 Project Report&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#visualization-1---email-content-word-cloud&quot;&gt;Visualization 1 - Email Content Word Cloud&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#visualization-2---attack-type-popularity-and-connectivity&quot;&gt;Visualization 2 - Attack type popularity and connectivity&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#visualization-3---multi-line-chart-of-date--stock&quot;&gt;Visualization 3 - Multi-Line Chart of Date &amp;amp; Stock&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#visualization-4---calendar-view-of-fraudulent-emails&quot;&gt;Visualization 4 - Calendar View of Fraudulent Emails&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#visualization-5---bubble-map-of-fraudulent-emails-attacker-locations&quot;&gt;Visualization 5 - Bubble Map of Fraudulent Emails Attacker Locations&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#contributions&quot;&gt;Contributions&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;assignment-3-project-report&quot;&gt;Assignment 3 Project Report&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;GitHub Repo: &lt;a href=&quot;https://github.com/Anthonyive/DSCI-550-Assignment-3&quot;&gt;https://github.com/Anthonyive/DSCI-550-Assignment-3&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Demo: &lt;a href=&quot;https://www.fradulent-emails-d3.ml&quot;&gt;fradulent-emails-d3.ml&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;visualization-1---email-content-word-cloud&quot;&gt;Visualization 1 - Email Content Word Cloud&lt;/h3&gt;
+
+&lt;figure id=&quot;figure-2&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'fradulent-emails-d3-vis1'});&quot; href=&quot;/blog/assets/figures/fradulent-emails-d3-vis1.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/fradulent-emails-d3-vis1.png&quot; alt=&quot;Visualization 1 - Email Content Word Cloud&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 2: Visualization 1 - Email Content Word Cloud [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'fradulent-emails-d3-vis1'});&quot; href=&quot;/blog/assets/figures/fradulent-emails-d3-vis1.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;p&gt;We decided to make clickable word cloud images for visualizing the emails’ text content from assignment 1 and 2. The intent is to compare the original 4000 email corpus with the machine generated email text and understand how attackers phrased. The top 150 words with the most frequency are displayed in the cloud proportional to their appearance in the emails, with punctuations and stop words removed. We can see that in a lot of words appeared often in both corpus, such as ‘ bank’, ‘money’, ‘fund’, and ‘business’. It is intuitive to understand that phishing emails mention words relating to money and fund a lot and this is closely connected to their attack types.&lt;/p&gt;
+
+&lt;h3 id=&quot;visualization-2---attack-type-popularity-and-connectivity&quot;&gt;Visualization 2 - Attack type popularity and connectivity&lt;/h3&gt;
+
+&lt;figure id=&quot;figure-3&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'fradulent-emails-d3-vis2'});&quot; href=&quot;/blog/assets/figures/fradulent-emails-d3-vis2.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/fradulent-emails-d3-vis2.png&quot; alt=&quot;Visualization 2 - Attack type popularity and connectivity&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 3: Visualization 2 - Attack type popularity and connectivity [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'fradulent-emails-d3-vis2'});&quot; href=&quot;/blog/assets/figures/fradulent-emails-d3-vis2.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;p&gt;To the very beginning, we are required to seek the correlation among attack types and other fraudulent emails’ features. However, we believe that the inner relationships among these four attack types might be ignored. So we decided to see the popularity and connectivity of each attack type by using Venn Diagram. The “RE”,”SE”,”CP”,”MA” each stands for “Reconnaissance”, “Social Engineering”, “Credential Phishing”, “Malware”. And according to the graph, we can find that social engineering is very likely to appear together with credential phishing and malware is more likely to be an independent attract type.&lt;/p&gt;
+
+&lt;h3 id=&quot;visualization-3---multi-line-chart-of-date--stock&quot;&gt;Visualization 3 - Multi-Line Chart of Date &amp;amp; Stock&lt;/h3&gt;
+
+&lt;figure id=&quot;figure-4&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'fradulent-emails-d3-vis3'});&quot; href=&quot;/blog/assets/figures/fradulent-emails-d3-vis3.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/fradulent-emails-d3-vis3.png&quot; alt=&quot;Visualization 3 - Multi-Line Chart of Date &amp;amp; Stock&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 4: Visualization 3 - Multi-Line Chart of Date &amp;amp; Stock [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'fradulent-emails-d3-vis3'});&quot; href=&quot;/blog/assets/figures/fradulent-emails-d3-vis3.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;p&gt;We would like to find out whether the number of fraud emails for each day from 2003 to 2007 is related to the daily opening and closing stock prices. We chose a line chart for this because the line chart can clearly show the trends of how data vary. There is only little difference between opening and closing prices, but it’s clear that the prices are continually increasing over time. From the line at the bottom (which can be hardly seen), we can see that the number of fraudulent emails doesn’t vary too much. Thus, the stock prices seem to have little influence on the fraud emails.&lt;/p&gt;
+
+&lt;h3 id=&quot;visualization-4---calendar-view-of-fraudulent-emails&quot;&gt;Visualization 4 - Calendar View of Fraudulent Emails&lt;/h3&gt;
+
+&lt;figure id=&quot;figure-5&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'fradulent-emails-d3-vis4'});&quot; href=&quot;/blog/assets/figures/fradulent-emails-d3-vis4.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/fradulent-emails-d3-vis4.png&quot; alt=&quot;Visualization 4 - Calendar View of Fraudulent Emails&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 5: Visualization 4 - Calendar View of Fraudulent Emails [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'fradulent-emails-d3-vis4'});&quot; href=&quot;/blog/assets/figures/fradulent-emails-d3-vis4.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;p&gt;We wanted to find out how the stock market changed over the time period of these fraudulent emails. Besides the multi-line chart that shows the overall stock market price changes during 2003 to 2007, we also wanted to show how the daily opening and closing stock price related to the previous day. Calendar view plot is a great way to show off our intent. The greener the blocks are, the more daily changes it has. We also have some white blocks since we don’t have all the prices of these dates. However, sometimes we may have multiple stock prices on the same day, then we will take the average. We can see that the changes most happened around the winter/spring of 2003 and the summer of 2007.&lt;/p&gt;
+
+&lt;h3 id=&quot;visualization-5---bubble-map-of-fraudulent-emails-attacker-locations&quot;&gt;Visualization 5 - Bubble Map of Fraudulent Emails Attacker Locations&lt;/h3&gt;
+
+&lt;figure id=&quot;figure-6&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'fradulent-emails-d3-vis5'});&quot; href=&quot;/blog/assets/figures/fradulent-emails-d3-vis5.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/fradulent-emails-d3-vis5.png&quot; alt=&quot;Visualization 5 - Bubble Map of Fraudulent Emails Attacker Locations&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 6: Visualization 5 - Bubble Map of Fraudulent Emails Attacker Locations [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'fradulent-emails-d3-vis5'});&quot; href=&quot;/blog/assets/figures/fradulent-emails-d3-vis5.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;p&gt;This is a bubble map for fraudulent email attackers’ location or the countries that they mentioned in the email contents. Size of the bubble indicates the number of spam emails sent from a certain location.  The bubble map informed us that the majority of the attackers are located in North America. Some spam email attackers clustered in Africa and South America. Only a few attackers highlighted Asian countries in their emails or sent out emails from Asian countries. We would not be able to easily conclude where the majority of the spam emails came from just by extracting ip address or mentioned locations from email. Generating graphs are visually more straight-forward and convincible.&lt;/p&gt;
+
+&lt;h3 id=&quot;contributions&quot;&gt;Contributions&lt;/h3&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;**Yuchen Zhang**&lt;/td&gt;
+      &lt;td&gt;**Xiuwen Zhang**&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;^^ - Convert tsv to json using python3 compatible etllib&lt;/td&gt;
+      &lt;td&gt;^^ - Visualization 3 - Multi-Line Chart of Date &amp;amp; Stock&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;^^     - Pull request: [https://github.com/Anthonyive/etllib.git](https://github.com/Anthonyive/etllib.git)&lt;/td&gt;
+      &lt;td&gt;^^&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;^^ - Set up Flask for team member’s visualizations&lt;/td&gt;
+      &lt;td&gt;^^ - Run and test GeoParser&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;^^ - Visualization 4 - Calendar View of Fraudulent Emails&lt;/td&gt;
+      &lt;td&gt;^^&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;^^ - Run Image Space using face generator output from assignment 2&lt;/td&gt;
+      &lt;td&gt;^^&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;^^ - Help on Task 5 data conversions&lt;/td&gt;
+      &lt;td&gt;^^&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;**Nat Zheng**&lt;/td&gt;
+      &lt;td&gt;**Zixi Jiang**&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;^^ - Cleaned and reorganized the attacker locations from assignment 1 and stored stored them to a valid input csv file for visualization&lt;/td&gt;
+      &lt;td&gt;^^ - Made Visualization 1 - Clickable Word Cloud&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;^^ - Visualization 5 - Bubble map of fraudulent attackers’ location&lt;/td&gt;
+      &lt;td&gt;^^ - Ran GeoParser and got the location graphs&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;**Peizhen Li**&lt;/td&gt;
+      &lt;td&gt;**Xiaoyu Wang**&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;^^ - Task 3 - ingest Task1 and Task 2 data into ElasticSearch&lt;/td&gt;
+      &lt;td&gt;^^ - Visualization 2 - Attack type popularity and connectivity&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;^^ - Task 5 - Using Elasticdump to generate new json files with Index for Task 3&lt;/td&gt;
+      &lt;td&gt;^^ - Modify scripts for GeoParser, prepare datasets for geological data in assignment1&amp;amp;2, and test GeoParser&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;^^ - Upload the folder and zip&lt;/td&gt;
+      &lt;td&gt;^^&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;</content><author><name>[&quot;Zixi Jiang&quot;, &quot;Peizhen Li&quot;, &quot;Xiaoyu Wang&quot;, &quot;Yuchen Zhang&quot;, &quot;Xiuwen Zhang&quot;, &quot;Nat Zheng&quot;]</name></author><category term="project" /><category term="d3" /><category term="flask" /><category term="spacy" /><category term="flask-application" /><category term="dcgan" /><category term="d3js" /><category term="phishing-attacks" /><category term="d3-visualization" /><category term="phishing-detection" /><category term="gpt-2-simple" /><category term="natual-language-processing" /><summary type="html">Figure 1: Home Page [PNG]</summary></entry><entry><title type="html">Walmart Product Search Project with Demo</title><link href="https://anthonyive.github.io/blog/project/2021/05/04/walmart-product-search-demo.html" rel="alternate" type="text/html" title="Walmart Product Search Project with Demo" /><published>2021-05-04T00:00:00+00:00</published><updated>2021-05-04T00:00:00+00:00</updated><id>https://anthonyive.github.io/blog/project/2021/05/04/walmart-product-search-demo</id><content type="html" xml:base="https://anthonyive.github.io/blog/project/2021/05/04/walmart-product-search-demo.html">&lt;figure id=&quot;figure-1&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'walmart-search-demo'});&quot; href=&quot;/blog/assets/figures/walmart-search-demo.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/walmart-search-demo.png&quot; alt=&quot;Walmart Search Demo&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 1: Walmart Search Demo [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'walmart-search-demo'});&quot; href=&quot;/blog/assets/figures/walmart-search-demo.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;#check-out-demo-here&quot;&gt;Check out demo here&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#scripts&quot;&gt;Scripts&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#where-we-stored-the-data&quot;&gt;Where we stored the data&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#demo&quot;&gt;Demo&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;check-out-demo-here&quot;&gt;Check out demo &lt;a href=&quot;https://www.dsci-551-project-walmart-demo.ml&quot;&gt;here&lt;/a&gt;&lt;/h2&gt;
+
+&lt;p&gt;I’m using a new domain name from freenom that will support for an year. I deployed the website on AWS ec2.&lt;/p&gt;
+
+&lt;h2 id=&quot;scripts&quot;&gt;Scripts&lt;/h2&gt;
+
+&lt;h3 id=&quot;where-we-stored-the-data&quot;&gt;Where we stored the data&lt;/h3&gt;
+
+&lt;p&gt;We eventually used MongoDB. It’s worth mentioning that we tried MySQL and Cassandra. However, our data is kinda tedious to be stored tabularly. Even though it can, it takes a very long time to insert and the final database file is enormous, so it’s not very portable for us to implement into our website. Regarding to Cassandra, the problem was we wanted to store our data on the cloud and at that time professor conveniently put up the github pro information so that we expand our storage with $200 credits mongodb offered. Finally, it’s easier to index with MongoDB using Lucene. Coincidentally, I also did a paper review about Lucene in another class. Lucene is sort of the foundation of Apache Solr and Elasticsearch, and it did a really good job for us to implement its search functionality into our UI.&lt;/p&gt;
+
+&lt;h3 id=&quot;demo&quot;&gt;Demo&lt;/h3&gt;
+
+&lt;p&gt;I will jump right into the demo of our project. So our goal was to just rebuild the search functionality from the online shopping websites like Walmart or Amazon.&lt;/p&gt;
+
+&lt;p&gt;You can see there’s a title says search a product in our database. And we said that the database uses 6000 pages using Walmart API, then we used spark to filter out not in stock and not available online products beforehand.&lt;/p&gt;
+
+&lt;p&gt;The next paragraph is live updated. So, currently we have 344304 products on MongoDB. This is just counting how many documents in our database. It also says we have 3979 distinct categories. The walmart api actually has unique identifiers for each category. So this is counting unique number of those identifiers. Then, finally, it calculates the average number of reviews each product has.&lt;/p&gt;
+
+&lt;p&gt;Then we have a big search bar for searching items and a list of filtering options. Each filtering option has number of products our database has. So before searching, it counts how many products fall into each category.&lt;/p&gt;
+
+&lt;p&gt;So if we type search query like “Apple” and click on the search button. First we can immediately see that it gives us what the top categories of the search results are and it also gives how many products fall into each category. For very long category paths, it also truncates them to smaller path.&lt;/p&gt;
+
+&lt;p&gt;Then, we can see that filtering options will update number of products each filter contains. These counts will change depending on your search query. So if we click on Clearance, we can see there are actually two items left for the search results.&lt;/p&gt;
+
+&lt;p&gt;Speaking of searching, our search index is created around brand name, product name, short description and long description. After index was created, we can perform full-text search on these fields.&lt;/p&gt;
+
+&lt;p&gt;So, the word “apple” with clearance filter will give us these two results and we can see that the word apple is in both the product name and their descriptions.&lt;/p&gt;
+
+&lt;p&gt;For the search results, we can see that we have brand name, product name, its star rating based on their actually ratings, number of reviews it has, of course its description. Also if the product is in sale, it will have its MSRP, and its sale price. Additionally, we have two types of shipping rates for each product. Finally, we can also view the product on Walmart.com if it has the product url given. Unfortunately, we supposed to have all the product links at the beginning of the semester when we scraped the data. However, Walmart has changed some of the fields during the semester, so lots of products doesn’t have their link anymore. Anyway, if they do, you can redirect to the walmart.com and see the details.&lt;/p&gt;
+
+&lt;p&gt;So if I click on this link, it will redirect me to the exact same product on walmart.com. You can see that the information is the same as our search results.&lt;/p&gt;</content><author><name>[&quot;Yuchen Zhang&quot;, &quot;Zian Fan&quot;]</name></author><category term="project" /><category term="backend" /><category term="frontend" /><category term="search" /><category term="flask" /><summary type="html">Figure 1: Walmart Search Demo [PNG]</summary></entry><entry><title type="html">Query Execution Study Note</title><link href="https://anthonyive.github.io/blog/computer/2021/04/19/query-execution-study-note.html" rel="alternate" type="text/html" title="Query Execution Study Note" /><published>2021-04-19T00:00:00+00:00</published><updated>2021-04-19T00:00:00+00:00</updated><id>https://anthonyive.github.io/blog/computer/2021/04/19/query-execution-study-note</id><content type="html" xml:base="https://anthonyive.github.io/blog/computer/2021/04/19/query-execution-study-note.html">&lt;p&gt;Query execution is part of the query processor. The SQL query will be firstly compiled then be executed. A simple diagram shows clearly below.&lt;/p&gt;
+
+&lt;figure id=&quot;figure-1&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'query-processor'});&quot; href=&quot;/blog/assets/figures/query-processor.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/query-processor.png&quot; alt=&quot;Components of Query Processor&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 1: Components of Query Processor [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'query-processor'});&quot; href=&quot;/blog/assets/figures/query-processor.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;p&gt;This note is mainly on query execution.&lt;/p&gt;
+
+&lt;h2 id=&quot;table-of-contents&quot;&gt;Table of Contents&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;#table-of-contents&quot;&gt;Table of Contents&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#cost-model&quot;&gt;Cost Model&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#why-and-some-assumptions&quot;&gt;Why? And Some Assumptions&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#cost-parameters&quot;&gt;Cost parameters&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#two-types-of-scanning-tables&quot;&gt;Two Types of Scanning Tables&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#clustered&quot;&gt;Clustered&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#unclustered&quot;&gt;Unclustered&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#cost-of-the-scan-operator&quot;&gt;Cost of the Scan Operator&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#clsutered-relation&quot;&gt;Clsutered relation&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#unclustered-relation&quot;&gt;Unclustered relation&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#classification-of-physical-operators&quot;&gt;Classification of Physical Operators&lt;/a&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#one-pass-algorithms&quot;&gt;One-pass Algorithms&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#selection-sigmar-and-projection-pir&quot;&gt;Selection, $\sigma(R)$ and Projection, $\Pi(R)$&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#duplicate-elimination-deltar&quot;&gt;Duplicate elimination, $\delta(R)$&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#grouping-gamma_textcity-sumpricer&quot;&gt;Grouping, $\gamma_{\text{city, sum(price)}}(R)$&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#binary-operations-rcap-s-rcup-s-r-s-rbowtie-s&quot;&gt;Binary operations, $R\cap S, R\cup S, R-S, R\bowtie S$&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#nested-loop-join-algorithms&quot;&gt;Nested-Loop Join Algorithms&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#tuple-based-nested-loop-joins&quot;&gt;Tuple-based Nested Loop Joins&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#block-based-nested-loop-joins&quot;&gt;Block-based Nested Loop Joins&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#two-pass-algorithms-based-on-sorting&quot;&gt;Two-pass Algorithms Based on Sorting&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#duplicate-elimination-deltar-based-on-sorting&quot;&gt;Duplicate Elimination $\delta(R)$ Based on Sorting&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#grouping-gamma_textcity-sumpricer-based-on-sorting&quot;&gt;Grouping $\gamma_{\text{city, sum(price)}}(R)$ Based on Sorting&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#binary-operations-rcap-s-rcup-s-r-s-based-on-sorting&quot;&gt;Binary operations $R\cap S, R\cup S, R-S$ Based on Sorting&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#sort-merge-join&quot;&gt;Sort-Merge Join&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#simple-sort-based-join&quot;&gt;Simple Sort-based Join&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#two-pass-algorithms-based-on-hashing&quot;&gt;Two-pass Algorithms Based on Hashing&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#duplicate-elimination-deltar-based-on-hashing&quot;&gt;Duplicate Elimination $\delta(R)$ Based on Hashing&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#partitioned-hash-join&quot;&gt;Partitioned Hash-Join&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#index-based-algorithms&quot;&gt;Index-Based Algorithms&lt;/a&gt;
+        &lt;ul&gt;
+          &lt;li&gt;&lt;a href=&quot;#index-based-selection-sigma_avr&quot;&gt;Index-Based Selection, $\sigma_{a=v}(R)$&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#index-based-join-rbowtie-s&quot;&gt;Index-Based Join, $R\bowtie S$&lt;/a&gt;&lt;/li&gt;
+          &lt;li&gt;&lt;a href=&quot;#index-based-join-with-two-indices&quot;&gt;Index-Based Join with Two Indices&lt;/a&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;cost-model&quot;&gt;Cost Model&lt;/h2&gt;
+
+&lt;h3 id=&quot;why-and-some-assumptions&quot;&gt;Why? And Some Assumptions&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Important in query optimization&lt;/li&gt;
+  &lt;li&gt;Here we consider &lt;mark&gt;I/O cost only&lt;/mark&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;mark&gt;We assume operands are relations stored on disk, but operator
+results will be left in main memory&lt;/mark&gt; (e.g., pipelined to next
+operator in query plan)&lt;/li&gt;
+  &lt;li&gt;So we &lt;mark&gt;don’t include the cost of writing the result&lt;/mark&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We will also need some notations, aka, cost parameters.&lt;/p&gt;
+
+&lt;h3 id=&quot;cost-parameters&quot;&gt;Cost parameters&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;$M$ = number of blocks/pages that are available in main memory&lt;/li&gt;
+  &lt;li&gt;$B(R)$ = number of blocks holding $R$&lt;/li&gt;
+  &lt;li&gt;$T(R)$ = number of tuples in $R$&lt;/li&gt;
+  &lt;li&gt;$V(R,a)$ = number of distinct values of the attribute $a$ of $R$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;two-types-of-scanning-tables&quot;&gt;Two Types of Scanning Tables&lt;/h3&gt;
+
+&lt;h4 id=&quot;clustered&quot;&gt;Clustered&lt;/h4&gt;
+
+&lt;p&gt;The table is clustered (i.e., block consists only of records from this table)&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;# of I/O’s = # of blocks&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;unclustered&quot;&gt;Unclustered&lt;/h4&gt;
+
+&lt;p&gt;The table is unclustered (e.g. its records are placed in blocks with those of other tables)&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;May need one block read for each record&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-2&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'clustered-unclustered'});&quot; href=&quot;/blog/assets/figures/clustered-unclustered.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/clustered-unclustered.png&quot; alt=&quot;Scanning Clustered/Uncluserted Tables&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 2: Scanning Clustered/Uncluserted Tables [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'clustered-unclustered'});&quot; href=&quot;/blog/assets/figures/clustered-unclustered.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h3 id=&quot;cost-of-the-scan-operator&quot;&gt;Cost of the Scan Operator&lt;/h3&gt;
+
+&lt;h4 id=&quot;clsutered-relation&quot;&gt;Clsutered relation&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;mark&gt;We assume clustered relations to estimate the costs of other physical operators. &lt;/mark&gt;&lt;/li&gt;
+  &lt;li&gt;Table scan: $B(R)$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;unclustered-relation&quot;&gt;Unclustered relation&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Table scan: $T(R)$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;classification-of-physical-operators&quot;&gt;Classification of Physical Operators&lt;/h2&gt;
+
+&lt;h3 id=&quot;one-pass-algorithms&quot;&gt;One-pass Algorithms&lt;/h3&gt;
+
+&lt;h4 id=&quot;selection-sigmar-and-projection-pir&quot;&gt;Selection, $\sigma(R)$ and Projection, $\Pi(R)$&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Both are &lt;em&gt;&lt;u&gt;tuple-at-a-time&lt;/u&gt;&lt;/em&gt; algorithms&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;: $B(R)$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-3&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'selection-projection'});&quot; href=&quot;/blog/assets/figures/selection-projection.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/selection-projection.png&quot; alt=&quot;Selection and projection diagram&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 3: Selection and projection diagram [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'selection-projection'});&quot; href=&quot;/blog/assets/figures/selection-projection.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h4 id=&quot;duplicate-elimination-deltar&quot;&gt;Duplicate elimination, $\delta(R)$&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Assumption: $B(\delta(R)) \le M-2$, or roughly $M$&lt;/li&gt;
+  &lt;li&gt;It needs to keep a dictionary in memory
+    &lt;ul&gt;
+      &lt;li&gt;Balanced Search Tree (BST)&lt;/li&gt;
+      &lt;li&gt;Hash Table&lt;/li&gt;
+      &lt;li&gt;Etc.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;: $B(R)$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-4&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'duplicate-elimination'});&quot; href=&quot;/blog/assets/figures/duplicate-elimination.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/duplicate-elimination.png&quot; alt=&quot;Duplicate elimination diagram&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 4: Duplicate elimination diagram [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'duplicate-elimination'});&quot; href=&quot;/blog/assets/figures/duplicate-elimination.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h4 id=&quot;grouping-gamma_textcity-sumpricer&quot;&gt;Grouping, $\gamma_{\text{city, sum(price)}}(R)$&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Assumption: number of cities and sums fit in memory&lt;/li&gt;
+  &lt;li&gt;It also needs to keep a dictionary in memory
+    &lt;ul&gt;
+      &lt;li&gt;In addition, it also stores the sum(price) for each city&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;: $B(R)$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;binary-operations-rcap-s-rcup-s-r-s-rbowtie-s&quot;&gt;Binary operations, $R\cap S, R\cup S, R-S, R\bowtie S$&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Assumption: $\text{min}(B(R), B(S)) \le M-2$, or roughly M&lt;/li&gt;
+  &lt;li&gt;Scan a smaller table of R and S into main memory, then read the other one, block by block&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;: $B(R)+B(S)$, assume both are clustered&lt;/li&gt;
+  &lt;li&gt;Example: $R\cap S$
+    &lt;ul&gt;
+      &lt;li&gt;Assumption: set-based, no duplicates&lt;/li&gt;
+      &lt;li&gt;Read $S$ into $M-2$ buffers and build a search structure&lt;/li&gt;
+      &lt;li&gt;Read each block of $R$, and for each tuple $t$ of $R$, see if $t$ is also in $S$&lt;/li&gt;
+      &lt;li&gt;If so, copy $t$ to the output; if not, ignore $t$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-5&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'one-pass-join'});&quot; href=&quot;/blog/assets/figures/one-pass-join.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/one-pass-join.png&quot; alt=&quot;One-pass join algorithm diagram&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 5: One-pass join algorithm diagram [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'one-pass-join'});&quot; href=&quot;/blog/assets/figures/one-pass-join.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h3 id=&quot;nested-loop-join-algorithms&quot;&gt;Nested-Loop Join Algorithms&lt;/h3&gt;
+
+&lt;h4 id=&quot;tuple-based-nested-loop-joins&quot;&gt;Tuple-based Nested Loop Joins&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;$R\bowtie S$&lt;/li&gt;
+  &lt;li&gt;Assumption: Neither relation is clustered&lt;/li&gt;
+  &lt;li&gt;Pseudo-Python-Code
+    &lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;r&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# r is a tuple in R
+&lt;/span&gt;  &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# s is a tuple in S
+&lt;/span&gt;    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;canBeJoined&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;r&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;r&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;    &lt;/div&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;: $T(R)T(S)$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;block-based-nested-loop-joins&quot;&gt;Block-based Nested Loop Joins&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;$R\bowtie S$
+    &lt;ul&gt;
+      &lt;li&gt;$R$ is the outer relation, $S$ is the inner relation&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Assumption
+    &lt;ul&gt;
+      &lt;li&gt;Both relation are clustered&lt;/li&gt;
+      &lt;li&gt;$B(R) \le B(S)$ and $B(S) &amp;gt; M$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Pseudo-Python-Code&lt;/p&gt;
+
+    &lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;br&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (M-2) blocks of br
+&lt;/span&gt;  &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bs&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;r&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;br&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# r is a tuple in R
+&lt;/span&gt;      &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# s is a tuple in S
+&lt;/span&gt;        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;canBeJoined&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;r&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+          &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;r&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;    &lt;/div&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt; ($M\ge 3$ in order for $M-2\ge 1$)
+    &lt;ul&gt;
+      &lt;li&gt;If R is the outer relation
+$$ B(R)+\frac{B(R)B(S)}{M-2} $$
+where $B(R)$ is the cost of reading $R$ once, $\frac{B(R)}{M-2}$ is the number of outer loop runs. Each run needs to read $S$, so the latter is multiplied by $B(S)$.&lt;/li&gt;
+      &lt;li&gt;If S is the outer relation
+$$ B(S)+\frac{B(R)B(S)}{M-2} $$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Takeaway: It is better to &lt;mark&gt;iterate over the smaller relation first&lt;/mark&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;two-pass-algorithms-based-on-sorting&quot;&gt;Two-pass Algorithms Based on Sorting&lt;/h3&gt;
+
+&lt;figure id=&quot;figure-6&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'sorting-hashing'});&quot; href=&quot;/blog/assets/figures/sorting-hashing.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/sorting-hashing.png&quot; alt=&quot;Sorting vs. Hashing&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 6: Sorting vs. Hashing [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'sorting-hashing'});&quot; href=&quot;/blog/assets/figures/sorting-hashing.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;strong&gt;Sort-based vs. Hash-based Algorithms&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Sort-based algorithms sometimes allow us to produce a result in sorted order and take advantage of that sort later&lt;/li&gt;
+  &lt;li&gt;Hash-based algorithms for binary operations have a size requirement only on the smaller of two input relations&lt;/li&gt;
+  &lt;li&gt;Hash-based algorithm depends on the &lt;mark&gt;buckets being of equal size&lt;/mark&gt;, which may not be true if data are skewed&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;duplicate-elimination-deltar-based-on-sorting&quot;&gt;Duplicate Elimination $\delta(R)$ Based on Sorting&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Idea: Sort first, then eliminate duplicates&lt;/li&gt;
+  &lt;li&gt;Assumption: $B(R) \le M^2$ (roughly)
+    &lt;ul&gt;
+      &lt;li&gt;$B(R)/M$ is # of runs&lt;/li&gt;
+      &lt;li&gt;# of runs has to be smaller than or equal to $M-1$ to complete the merging in the second pass&lt;/li&gt;
+      &lt;li&gt;Therefore, $B(R)/M \le M-1$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Steps
+    &lt;ul&gt;
+      &lt;li&gt;Pass 1: sort runs of size $M$ and then write
+        &lt;ul&gt;
+          &lt;li&gt;Cost: $2B(R)$&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;Pass 2: merge $M-1$ runs, but include each tuple only once
+        &lt;ul&gt;
+          &lt;li&gt;Cost: $B(R)$&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;: $3B(R)$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;grouping-gamma_textcity-sumpricer-based-on-sorting&quot;&gt;Grouping $\gamma_{\text{city, sum(price)}}(R)$ Based on Sorting&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Assumption: $B(R) \le M^2$&lt;/li&gt;
+  &lt;li&gt;Steps
+    &lt;ul&gt;
+      &lt;li&gt;Pass 1: sort runs of size $M$ and then write
+        &lt;ul&gt;
+          &lt;li&gt;Cost: $2B(R)$&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;Pass 2: merge $M-1$ runs, but include each tuple only once. &lt;mark&gt;Also, compute sum(price) for group during the merge phase (new compared to duplicate elimination based on sorting)&lt;/mark&gt;
+        &lt;ul&gt;
+          &lt;li&gt;Cost: $B(R)$&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;: $3B(R)$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;binary-operations-rcap-s-rcup-s-r-s-based-on-sorting&quot;&gt;Binary operations $R\cap S, R\cup S, R-S$ Based on Sorting&lt;/h4&gt;
+
+&lt;p&gt;Note that join operator ($\bowtie$) is not included this time. Why? Because there are a large number of tuples with the same value on the join attribute(s), however the buffer can not hold all joining tuples (with the same value on join attribute) for at least one relation.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Idea: Sort $R$, sort $S$, then do their binary operations&lt;/li&gt;
+  &lt;li&gt;Assumption: $B(R)+B(S) \le M^2$ (roughly)&lt;/li&gt;
+  &lt;li&gt;Steps
+    &lt;ul&gt;
+      &lt;li&gt;Pass 1: Split $R$ into runs of size $M$, then split $S$ into runs of size $M$
+        &lt;ul&gt;
+          &lt;li&gt;Cost: $2B(R)+2B(S)$&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;Pass 2: Merge $M-1$ runs from $R$ and $S$, then output a tuple on a case by cases basis
+        &lt;ul&gt;
+          &lt;li&gt;Cost: $B(R)$&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;: $3B(R)+3B(S)$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-7&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': '2-pass-merging'});&quot; href=&quot;/blog/assets/figures/2-pass-merging.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/2-pass-merging.png&quot; alt=&quot;Merging diagram&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 7: Merging diagram [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': '2-pass-merging'});&quot; href=&quot;/blog/assets/figures/2-pass-merging.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h4 id=&quot;sort-merge-join&quot;&gt;Sort-Merge Join&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Assumption:
+    &lt;ul&gt;
+      &lt;li&gt;The buffer is enough to hold join tuples for at least one relation
+        &lt;ul&gt;
+          &lt;li&gt;Note that the buffer also needs to hold a block for each run of the other relation&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;$B(R)+B(S) \le M^2$ (roughly)&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;: $3B(R)+3B(S)$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;simple-sort-based-join&quot;&gt;Simple Sort-based Join&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Idea: Sort $R$, sort $S$, then do their binary operations&lt;/li&gt;
+  &lt;li&gt;Assumption: $B(R)\le M^2$, $B(S)\le M^2$, and at least one set of the tuples with a common value for the join attributes fit in $M$ (or $M-2$ to be exact)
+    &lt;ul&gt;
+      &lt;li&gt;Note that we only need one page buffer for the other relation&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Steps
+    &lt;ul&gt;
+      &lt;li&gt;Step 1: Start by completely sorting both $R$ and $S$ on the join attribute (assuming this can be done in 2 passes):
+        &lt;ul&gt;
+          &lt;li&gt;Cost: $4B(R)+4B(S)$, because we need to write result to disk&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;Step 2: Read both relations in sorted order, match tuples
+        &lt;ul&gt;
+          &lt;li&gt;Cost: $B(R)+B(S)$&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;: $5B(R)+5B(S)$&lt;/li&gt;
+  &lt;li&gt;Note
+    &lt;ul&gt;
+      &lt;li&gt;Can use as many buffers as possible to load join tuples from one relation (with the same join value), say $R$
+        &lt;ul&gt;
+          &lt;li&gt;Only one buffer is needed for the other relation, say $S$&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;If we still can not fit all join tuples from $R$
+        &lt;ul&gt;
+          &lt;li&gt;Need to use nested loop algorithm, higher cost&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;two-pass-algorithms-based-on-hashing&quot;&gt;Two-pass Algorithms Based on Hashing&lt;/h3&gt;
+
+&lt;h4 id=&quot;duplicate-elimination-deltar-based-on-hashing&quot;&gt;Duplicate Elimination $\delta(R)$ Based on Hashing&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Idea
+    &lt;ul&gt;
+      &lt;li&gt;Partition a relation R into buckets on disk. Each bucket has size approximately $B(R)/M$&lt;/li&gt;
+      &lt;li&gt;Does each bucket fit in main memory?
+        &lt;ul&gt;
+          &lt;li&gt;Yes if $B(R)/(M-1) \le M-2$ (i.e., approx. $B(R) \le M^2$)&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;Apply the one-pass duplicate elimination $\delta$ algorithm for each $R_i$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Assumption: $B(R) \le M^2$ (roughly)
+    &lt;ul&gt;
+      &lt;li&gt;Exact: $B(R)/(M-1) \le M-2$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Steps
+    &lt;ul&gt;
+      &lt;li&gt;Step 1: Partition $R$ into $M-1$ buckets&lt;/li&gt;
+      &lt;li&gt;Step 2: Apply $\delta$ to each bucket (must read it into main memory)&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;: $3B(R)$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-8&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': '2-pass-delta'});&quot; href=&quot;/blog/assets/figures/2-pass-delta.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/2-pass-delta.png&quot; alt=&quot;Two-pass Duplicate Elimination Diagram Based on Hashing&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 8: Two-pass Duplicate Elimination Diagram Based on Hashing [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': '2-pass-delta'});&quot; href=&quot;/blog/assets/figures/2-pass-delta.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h4 id=&quot;partitioned-hash-join&quot;&gt;Partitioned Hash-Join&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Assumption: $\text{min}(B(R),B(S)) \le M^2$
+    &lt;ul&gt;
+      &lt;li&gt;Exact: $\frac{\text{min}(B(R),B(S))}{M-1} \le M-3$&lt;/li&gt;
+      &lt;li&gt;If we don’t use hash table to speed up the lookup: $\frac{\text{min}(B(R),B(S))}{M-1} \le M-2$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Steps
+    &lt;ul&gt;
+      &lt;li&gt;Step 1
+        &lt;ul&gt;
+          &lt;li&gt;Hash $S$ into $M$ - 1 bucket&lt;/li&gt;
+          &lt;li&gt;Send all buckets to disk&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;Step 2
+        &lt;ul&gt;
+          &lt;li&gt;Hash $R$ into $M$ - 1 bucket&lt;/li&gt;
+          &lt;li&gt;Send all buckets to disk&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;Step 3
+        &lt;ul&gt;
+          &lt;li&gt;Join every pair of &lt;em&gt;corresponding&lt;/em&gt; buckets&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;: $3B(R)+3B(S)$&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-9&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'partitioned-hash-join-pass-1'});&quot; href=&quot;/blog/assets/figures/partitioned-hash-join-pass-1.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/partitioned-hash-join-pass-1.png&quot; alt=&quot;Partitioned Hash-Join Pass 1 (Steps 1&amp;amp;2) Diagram&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 9: Partitioned Hash-Join Pass 1 (Steps 1&amp;amp;2) Diagram [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'partitioned-hash-join-pass-1'});&quot; href=&quot;/blog/assets/figures/partitioned-hash-join-pass-1.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;figure id=&quot;figure-10&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'partitioned-hash-join-pass-2'});&quot; href=&quot;/blog/assets/figures/partitioned-hash-join-pass-2.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/partitioned-hash-join-pass-2.png&quot; alt=&quot;Partitioned Hash-Join Pass 2 (Steps 3) Diagram&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 10: Partitioned Hash-Join Pass 2 (Steps 3) Diagram [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'partitioned-hash-join-pass-2'});&quot; href=&quot;/blog/assets/figures/partitioned-hash-join-pass-2.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h3 id=&quot;index-based-algorithms&quot;&gt;Index-Based Algorithms&lt;/h3&gt;
+
+&lt;p&gt;The existence of an index on one ore more
+attributes of a relation makes available some
+algorithms that would not be feasible without the
+index
+• Useful for selection operations
+• Also, algorithms for join and other binary
+operations use indexes to good advantage&lt;/p&gt;
+
+&lt;h4 id=&quot;index-based-selection-sigma_avr&quot;&gt;Index-Based Selection, $\sigma_{a=v}(R)$&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Assumption: We here ignored the cost of reading index blocks&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;
+    &lt;ul&gt;
+      &lt;li&gt;Clustered index on attribute $a$: $B(R)/V(R,a)$&lt;/li&gt;
+      &lt;li&gt;Unclustered index on attribute $a$: $T(R)/V(R,a)$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;index-based-join-rbowtie-s&quot;&gt;Index-Based Join, $R\bowtie S$&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Assumption: Assume $S$ has an index on the join attribute&lt;/li&gt;
+  &lt;li&gt;Steps
+    &lt;ul&gt;
+      &lt;li&gt;Iterate over $R$, for each tuple, fetch corresponding tuple $s$ from $S$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;
+    &lt;ul&gt;
+      &lt;li&gt;Clustered index
+$$B(R) + \frac{T(R)B(S)}{V(S,a)}$$&lt;/li&gt;
+      &lt;li&gt;Unclustered index
+$$B(R) + \frac{T(R)T(S)}{V(S,a)}$$&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Indexed-Based Join vs NLJ
+    &lt;ul&gt;
+      &lt;li&gt;Recall the cost for Nested Loop Join (NLJ), assume both $R$ and $S$ are clustered
+$$B(R) + \frac{B(R)B(S)}{M-2}$$&lt;/li&gt;
+      &lt;li&gt;Index-Based wins NLJ if:
+        &lt;ul&gt;
+          &lt;li&gt;$$\frac{T(R)}{V(S,a)} &amp;lt; \frac{B(R)}{M-2}$$, or&lt;/li&gt;
+          &lt;li&gt;$$V(S,a) &amp;gt; (M-2) \cdot \frac{T(R)}{B(R)}$$&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure id=&quot;figure-11&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'IBJ-clustered'});&quot; href=&quot;/blog/assets/figures/IBJ-clustered.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/IBJ-clustered.png&quot; alt=&quot;Index-Based Join: Clustered Index Diagram&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 11: Index-Based Join: Clustered Index Diagram [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'IBJ-clustered'});&quot; href=&quot;/blog/assets/figures/IBJ-clustered.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;figure id=&quot;figure-12&quot;&gt;&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'IBJ-unclustered'});&quot; href=&quot;/blog/assets/figures/IBJ-unclustered.png&quot;&gt;&lt;img src=&quot;/blog/assets/figures/IBJ-unclustered.png&quot; alt=&quot;Index-Based Join: Unclustered Index Diagram&quot; /&gt;&lt;/a&gt;&lt;figcaption&gt;Figure 12: Index-Based Join: Unclustered Index Diagram [&lt;a onclick=&quot;ga('send', 'event', { 'eventCategory': 'Figure', 'eventAction': 'View', 'eventLabel': 'IBJ-unclustered'});&quot; href=&quot;/blog/assets/figures/IBJ-unclustered.png&quot;&gt;PNG&lt;/a&gt;]&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h4 id=&quot;index-based-join-with-two-indices&quot;&gt;Index-Based Join with Two Indices&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Assumption: Assume both $R$ and $S$ have a clustered index (e.g., B+-tree) on the join attribute&lt;/li&gt;
+  &lt;li&gt;Then can perform a sort-merge join where sorting is already done (for free)&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Cost&lt;/strong&gt;: $B(R) + B(S)$&lt;/li&gt;
+&lt;/ul&gt;</content><author><name>Yuchen Zhang</name></author><category term="computer" /><category term="study-notes" /><category term="sql" /><category term="query-execution" /><summary type="html">Query execution is part of the query processor. The SQL query will be firstly compiled then be executed. A simple diagram shows clearly below.</summary></entry><entry><title type="html">My First Blog Post</title><link href="https://anthonyive.github.io/blog/blog/2021/04/11/my-first-blog-post.html" rel="alternate" type="text/html" title="My First Blog Post" /><published>2021-04-11T10:51:33+00:00</published><updated>2021-04-11T10:51:33+00:00</updated><id>https://anthonyive.github.io/blog/blog/2021/04/11/my-first-blog-post</id><content type="html" xml:base="https://anthonyive.github.io/blog/blog/2021/04/11/my-first-blog-post.html">&lt;p&gt;Hello world! This is my first blog using GitHub Pages.&lt;/p&gt;
+
+&lt;p&gt;I worked on this website for almost a day and found out GitHub Pages is very easy to write code. Originally, I was going for a written test from Tencent at 4 a.m. (7 p.m. in Beijing), but I found there actually isn’t any. Nevertheless, I stayed up late until now, like 3:44 a.m., to finish writing this awesome website.&lt;/p&gt;
+
+&lt;p&gt;Speaking of the written test from Tencent, the summer internships are not looking good for me. I applied a dozen and got interviewed a few. However, I feel like I am in the the middle of a good coder and a good statistian, while all the internships need me both. Knowledge is hard to keep in my head and my notes are scattered everywhere. Sometimes I get headache when I think about them. Anyway, I hope this spring recruitment thing turns out to be a good experience for me to prepare for the next internship.&lt;/p&gt;
+
+&lt;p&gt;Things didn’t go very well these days, but I hope everything will be ok in the future.&lt;/p&gt;</content><author><name>Yuchen Zhang</name></author><category term="blog" /><category term="first-blog" /><summary type="html">Hello world! This is my first blog using GitHub Pages.</summary></entry><entry><title type="html">Paper Review: Apache Lucene 4</title><link href="https://anthonyive.github.io/blog/project/2021/03/28/DSCI-550-Paper-Review-Apache-Lucene-4.html" rel="alternate" type="text/html" title="Paper Review: Apache Lucene 4" /><published>2021-03-28T00:00:00+00:00</published><updated>2021-03-28T00:00:00+00:00</updated><id>https://anthonyive.github.io/blog/project/2021/03/28/DSCI-550-Paper-Review-Apache-Lucene-4</id><content type="html" xml:base="https://anthonyive.github.io/blog/project/2021/03/28/DSCI-550-Paper-Review-Apache-Lucene-4.html">&lt;p&gt;&lt;img src=&quot;https://www.youtube.com/watch?v=FhonejJcFpc&amp;amp;t=1s&quot; alt=&quot;myimg&quot; /&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;#related-work--background&quot;&gt;Related work &amp;amp; background&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#what-is-lucene&quot;&gt;What is Lucene&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#why-should-you-care-about-lucene&quot;&gt;Why should you care about Lucene?&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#information-retrieval-ir&quot;&gt;Information Retrieval (IR)&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#inverted-index&quot;&gt;Inverted index&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#foundations&quot;&gt;Foundations&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#indexing&quot;&gt;Indexing&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#incremental-index-updates&quot;&gt;Incremental Index Updates&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#codec-api&quot;&gt;Codec API&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#searching&quot;&gt;Searching&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#conclusion&quot;&gt;Conclusion&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#evaluation&quot;&gt;Evaluation&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#references&quot;&gt;References&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Today I’m presenting a Paper called &lt;a href=&quot;https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.310.1024&amp;amp;rep=rep1&amp;amp;type=pdf&quot;&gt;Apache Lucene 4&lt;/a&gt; from proceedings of the Sigia 2012 workshop on information retrieval. The following are the script for the YouTube video.&lt;/p&gt;
+
+&lt;h2 id=&quot;related-work--background&quot;&gt;Related work &amp;amp; background&lt;/h2&gt;
+
+&lt;p&gt;First a little background, Lucene was originally written by Doug Cutting in 1997 as a side project of learning Java when he was working for a company called Excite. Then after the company went bankrupt, he decided to make Lucene open source.&lt;/p&gt;
+
+&lt;p&gt;From the beginning, Lucene supports a variety of query types like fielded terms with boosts, wildcards, fuzzy words using edit distance, proximity searches, and boolean operators. After it was open-sourced, Lucene kept adding features over the years including support for regular expressions, spatial distances, and arbitrary scoring functions.&lt;/p&gt;
+
+&lt;p&gt;Related works include Xapian, the Lemur[li:mer] project, the Terrier IR platform, and managing gigabytes for java. All of them are information retrieval systems or full-text search engines.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-is-lucene&quot;&gt;What is Lucene&lt;/h2&gt;
+
+&lt;p&gt;So, what is Lucene? Well, Lucene is a full-text search engine, in fact, a high-performance search engine library written in Java. It has scalable, high-performance indexing. We will discuss this in detail later. It has powerful, accurate, and efficient search algorithms. And it has cross-platform solutions like python library PyLucene or C# implementation Lucene.NET.&lt;/p&gt;
+
+&lt;h2 id=&quot;why-should-you-care-about-lucene&quot;&gt;Why should you care about Lucene?&lt;/h2&gt;
+
+&lt;p&gt;Well, to understand how the search system works. Obviously, nowadays we have big companies like Google who control the search engine industry, but there’s the other end of the spectrum for instance Twitter uses Lucene to do real-time searches over tweets. That’s over a billion queries a day back in 2011.&lt;/p&gt;
+
+&lt;p&gt;There’s an article back in 2012 titled “DotLucene: Full-Text Search for your intranet or website using 37 lines of code”. We can see how easy Lucene can be implemented.&lt;/p&gt;
+
+&lt;p&gt;Big 500 companies are still using it (or some variant of Lucene) today! As for our Data Scientists, MongoDB, Apache Solr, and Elasticsearch use it too. As I heard from the internet, even though Apache Lucene has been updated to 8.x.x, some companies are still using 4.x.x. This means that this paper is still relevant today, which is pretty amazing.&lt;/p&gt;
+
+&lt;p&gt;Also the high-performance aspect of Lucene. I will discuss it later in the slides.&lt;/p&gt;
+
+&lt;p&gt;Finally, one could leverage its ideas and build your own search engine.&lt;/p&gt;
+
+&lt;h2 id=&quot;information-retrieval-ir&quot;&gt;Information Retrieval (IR)&lt;/h2&gt;
+
+&lt;p&gt;Lucene is a type of information retreival system like a google search engine. For search engines, we need it to be accurate, fast, and preferably powerful. Obviously, we want it to be accurate. We also want it to be fast because we don’t want to wait days to issue a query. We may also want it to be powerful to issue complex quereis like fuzzy, wildcard, or phrase queries. On the right, we can see that Google can also highlight the terms you issued.&lt;/p&gt;
+
+&lt;p&gt;To tackle these problems, a simple solution could be matching the exact terms as we did in assignment 1. However, first, it’s not powerful even when you use something like regular expressions. Second, it’s slow to match the exact term because you have to go through every single document. If you used regular expression, it’s even slower.&lt;/p&gt;
+
+&lt;p&gt;Even though re is accurate, it’s accurate to a certain degree. You have to consider capitalization, the order of the terms, and fuzzy words like the word pizza with multiple z’s, etc.&lt;/p&gt;
+
+&lt;p&gt;Lucene overcame these problems by using a key idea called the inverted index.&lt;/p&gt;
+
+&lt;h2 id=&quot;inverted-index&quot;&gt;Inverted index&lt;/h2&gt;
+
+&lt;p&gt;So what is the inverted index? The inverted index is the opposite of the forward index. So forward index lists each document and its corresponding terms while the inverted index lists terms and the corresponding list of documents that have these terms. This results in a higher performance search efficiency.&lt;/p&gt;
+
+&lt;h2 id=&quot;foundations&quot;&gt;Foundations&lt;/h2&gt;
+
+&lt;p&gt;To begin, we need to extract terms both from documents and queries. Lucene will not only extract the term or token but also many attributes associated with the token such as token position, starting and ending offsets, token length, etc.&lt;/p&gt;
+
+&lt;p&gt;Lucene includes many many analysis implementations. And these implementations have their jobs including stemming, stop word removal, creation of n-grams, tagging, etc. All of which we have covered in class.&lt;/p&gt;
+
+&lt;p&gt;As you can imagine, having this many things could be very costly. However, Lucene version 4 also leveraged the finite state transducer (FST) package to significantly reduce memory usage.&lt;/p&gt;
+
+&lt;h2 id=&quot;indexing&quot;&gt;Indexing&lt;/h2&gt;
+
+&lt;p&gt;Move on to indexing. Lucene uses a document model to store all the information. Documents are modeled in Lucene as a flat ordered list of fields with content. The parsing outputs look very similar to Apache Tika. Not only have the extracted content in one of the key-value pairs, but also other attributes depending on their type. Each key-value pair is called a field. A field is either indexed or stored or both. We may want the field to be indexed but not stored. For example, we index a bunch of PDFs but not store them because they are stored elsewhere. We may also want to store a field but not index it. For example, we may only want to query on the content of the PDFs, but not its title. In this case, the title is stored but not indexed.&lt;/p&gt;
+
+&lt;h2 id=&quot;incremental-index-updates&quot;&gt;Incremental Index Updates&lt;/h2&gt;
+
+&lt;p&gt;After indexing, we can start searching. However, before searching, we need to talk about scalability. For the search engine to search over hundreds, even millions, billions of documents, it needs some sort of scalability because indexing takes time, a lot of time in fact.&lt;/p&gt;
+
+&lt;p&gt;When adding a new document, Lucene adds the indexed document in memory and stores it in segments. Periodically these in-memory segments are flushed to persistent storage. Also, as you can imagine, having more segments will decrease the performance since indices are spread all over the place and make it costly to find a document. One method is to merge segments to have fewer of them, however, merging is also costly to do. So Lucene will periodically merge them to comprise the whole index.&lt;/p&gt;
+
+&lt;p&gt;Document deletions in Lucene 4 have some quirks too. Each deletion is marked as deleted but not actually deleted similar to page deletion in SSD. This mechanic is different from previous versions of Lucene’s because the parts containing deletions can be set as immutable and each operation is committed with timestamps. Otherwise, if some segments are mutable, previous versions of Lucene’s will actually lock down the segments which will result in a decrease in performance.&lt;/p&gt;
+
+&lt;p&gt;Finally, IndexReader class uses Codec API to retrieve and decode index data.&lt;/p&gt;
+
+&lt;h2 id=&quot;codec-api&quot;&gt;Codec API&lt;/h2&gt;
+
+&lt;p&gt;Move on to the Codec API. The Codec API is essentially an API that encodes the index data into files. Additionally, it can also decode the byte data for reading and merge segment data.&lt;/p&gt;
+
+&lt;p&gt;The Codec API stores the data into four columns. These four columns are field, term, document, and position. The structured data can be easily retrieved with an imaginary cursor.&lt;/p&gt;
+
+&lt;p&gt;The paper also highlights the codec implementation in Lucene 4 which is called “Lucene40”. “Lucene40” provides a good tradeoff between index size and coding costs.&lt;/p&gt;
+
+&lt;p&gt;There’s also a directory API for storing these codecs into a simple file system-like view of persistent storage.&lt;/p&gt;
+
+&lt;h2 id=&quot;searching&quot;&gt;Searching&lt;/h2&gt;
+
+&lt;p&gt;Finally, into searching. Lucene uses a Query object instead of just a keyword string to perform queries. This enables programmers to construct more complex queries or to feed them into a query parser.&lt;/p&gt;
+
+&lt;p&gt;Using an object-oriented programming approach also enables more query types. Lucene 4 supports lots of them like wildcard, fuzzy and regular expression queries, etc.&lt;/p&gt;
+
+&lt;p&gt;For query evaluation, as said previously, index data is stored in segments, so query evaluation will sequentially go over segments for efficiency. In addition, to just find matches, we also want to sort the results by best match, so it generates a Scorer for each index segment. Finally, a Collector will consume Scorers and do something with these results.&lt;/p&gt;
+
+&lt;p&gt;The Similarity class implements a policy for scoring terms and query clauses. This is specifically good for fuzzy searches whereas users may accurately find the results even if they have a typo in the query. We can use edit distance as we learned in class to find the similarities between the fuzzy word and the actual term. It also has implementations like TF-IDF as we learned in class.&lt;/p&gt;
+
+&lt;p&gt;Finally, it also has common search extensions to support easier navigation of search results.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;In conclusion, this paper gave a historic view of Lucene and explained in detail how Lucene works. The paper also highlights some key features in Lucene 4 like immutable segments, new Codecs, more query types, etc.&lt;/p&gt;
+
+&lt;h2 id=&quot;evaluation&quot;&gt;Evaluation&lt;/h2&gt;
+
+&lt;p&gt;Lastly, my takes on this paper.&lt;/p&gt;
+
+&lt;p&gt;First, the paper has a very good structure. Originally, I was going to talk about Lucene chronologically and logically in my own way. However, as I dig into it, I found the structure of the paper was actually pretty good.&lt;/p&gt;
+
+&lt;p&gt;The paper has detailed explanations of Lucene.&lt;/p&gt;
+
+&lt;p&gt;Interesting ideas on improving performance. I have stated in the beginning how Lucene cares about performance. As we go along, we can see that Lucene contains many little features here and there to improve its efficiency and accuracy.&lt;/p&gt;
+
+&lt;p&gt;Besides its pros, it also has some drawbacks. First too many jargons. I’m always not a fan of jargons. Even though I have to give the authors credits that Lucene was an early project, and it has been developing many versions over the years, explaining it simply was hard. However, I would love to see people discuss amazing ideas in simple sentences.&lt;/p&gt;
+
+&lt;p&gt;Obscure and not well-typeset figures. Well, there are three figures in the paper, but the authors only discussed one. The other two are too sophisticated to show off.&lt;/p&gt;
+
+&lt;p&gt;Sporadic feature highlights on Lucene in version 4.&lt;/p&gt;
+
+&lt;p&gt;And finally, as a complaint, PyLucene, which is a python framework for Lucene, is very hard to install. I tried Mac and Linux, and both of them failed. I wish I could install it easily like every other package so that I can give it a try using python.&lt;/p&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Białecki, A. B., Muir, R. M., &amp;amp; Ingersoll, G. I. (2012, August). Apache Lucene 4. 17–24. &lt;a href=&quot;http://www.opensearchlab.otago.ac.nz/FullProceedings.pdf&quot;&gt;http://www.opensearchlab.otago.ac.nz/FullProceedings.pdf&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Brian Will. (2014a, March 5). Text search with Lucene (1 of 2) [Video]. YouTube. &lt;a href=&quot;https://www.youtube.com/watch?v=x37B_lCi_gc&amp;amp;t=3s&quot;&gt;https://www.youtube.com/watch?v=x37B_lCi_gc&amp;amp;t=3s&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Brian Will. (2014b, March 5). Text search with Lucene (2 of 2) [Video]. YouTube. &lt;a href=&quot;https://www.youtube.com/watch?v=fCK9U3L7c8U&amp;amp;t=36s&quot;&gt;https://www.youtube.com/watch?v=fCK9U3L7c8U&amp;amp;t=36s&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Letecky, D. (2012, November 6). DotLucene: Full-Text Search for Your Intranet or Website using 37 Lines of Code. CodeProject. &lt;a href=&quot;https://www.codeproject.com/Articles/9461/DotLucene-Full-Text-Search-for-Your-Intranet-or-We&quot;&gt;https://www.codeproject.com/Articles/9461/DotLucene-Full-Text-Search-for-Your-Intranet-or-We&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Twitter University. (2014, February 26). Apache Lucene: Then &amp;amp; Now [Video]. YouTube. &lt;a href=&quot;https://www.youtube.com/watch?v=5444z-L2V2A&amp;amp;t=115s&quot;&gt;https://www.youtube.com/watch?v=5444z-L2V2A&amp;amp;t=115s&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name>Yuchen Zhang</name></author><category term="project" /><category term="paper-review" /><summary type="html"></summary></entry></feed>
